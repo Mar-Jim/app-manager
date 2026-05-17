@@ -17,16 +17,21 @@ from dev_workbench.projects import (
     create_project,
 )
 from dev_workbench.storage import initialize_database
+from dev_workbench.work import WorkbenchService
 
 app = typer.Typer(help="Local-first developer workbench.")
 create_app = typer.Typer(help="Create starter local projects.")
 handoff_app = typer.Typer(help="Create and manage handoff files.")
 commands_app = typer.Typer(help="Suggest and run generated commands after approval.")
 prompt_app = typer.Typer(help="Generate Codex prompts from local project context.")
+todo_app = typer.Typer(help="Track local todos.")
+worklog_app = typer.Typer(help="Track local daily work notes.")
 app.add_typer(create_app, name="create")
 app.add_typer(handoff_app, name="handoff")
 app.add_typer(commands_app, name="commands")
 app.add_typer(prompt_app, name="prompt")
+app.add_typer(todo_app, name="todo")
+app.add_typer(worklog_app, name="worklog")
 
 
 @app.command()
@@ -108,6 +113,49 @@ def prompt_create(
 
     result = generate_prompt(task_type=task_type, task_description=task)
     typer.echo(result.prompt)
+
+
+@todo_app.command("add")
+def todo_add(text: str = typer.Argument(..., metavar="TEXT")) -> None:
+    """Add a local todo."""
+    todo = WorkbenchService().add_todo(text)
+    typer.echo(f"{todo.id}: {todo.text}")
+
+
+@todo_app.command("list")
+def todo_list() -> None:
+    """List local todos."""
+    todos = WorkbenchService().list_todos()
+    if not todos:
+        typer.echo("No todos.")
+        return
+    for todo in todos:
+        status = "x" if todo.completed else " "
+        typer.echo(f"{todo.id}. [{status}] {todo.text}")
+
+
+@todo_app.command("complete")
+def todo_complete(todo_id: int = typer.Argument(..., metavar="ID")) -> None:
+    """Mark a local todo complete."""
+    try:
+        todo = WorkbenchService().complete_todo(todo_id)
+    except ValueError as exc:
+        typer.echo(f"error: {exc}", err=True)
+        raise typer.Exit(code=2) from exc
+    typer.echo(f"completed: {todo.id}: {todo.text}")
+
+
+@worklog_app.command("add")
+def worklog_add(text: str = typer.Argument(..., metavar="TEXT")) -> None:
+    """Add a local work log entry."""
+    entry = WorkbenchService().add_worklog(text)
+    typer.echo(f"{entry.id}: {entry.text}")
+
+
+@worklog_app.command("summary")
+def worklog_summary() -> None:
+    """Generate a local daily summary draft."""
+    typer.echo(WorkbenchService().generate_daily_summary())
 
 
 @commands_app.command("list")

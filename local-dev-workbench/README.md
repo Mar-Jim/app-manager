@@ -33,6 +33,11 @@ workbench create bundle-job my-job
 workbench create bundle-pipeline my-pipeline
 workbench create bundle-sql my-sql
 workbench create bundle-dashboard my-dashboard
+workbench todo add "Review failing test"
+workbench todo list
+workbench todo complete 1
+workbench worklog add "Finished SQLite-backed local todos"
+workbench worklog summary
 workbench handoff create
 ```
 
@@ -60,6 +65,30 @@ Options:
 Generated bundles intentionally include only a `dev` target. Staging and production deployments are expected to be handled by the external deployer repo.
 When `--include-github-action` is set, the generator adds a dev-target bundle validation workflow only; it does not deploy staging or production.
 
+## Track Local Work
+
+Local todos, work log entries, and ticket-note-ready drafts are stored in SQLite under `.workbench/workbench.sqlite3` in the current working directory. Nothing is sent to Azure DevOps or any external service.
+
+```bash
+workbench todo add "Finish API tests"
+workbench todo list
+workbench todo complete 1
+workbench worklog add "Implemented local work log summary"
+workbench worklog summary
+```
+
+Daily summaries are generated as draft text:
+
+```text
+Today I worked on:
+Completed:
+In progress:
+Blockers:
+Next steps:
+```
+
+The service layer is local-first and keeps ticket note storage separate so Azure DevOps publishing can be added later without changing the todo and work log APIs.
+
 ## Run Backend
 
 ```bash
@@ -76,6 +105,12 @@ Available endpoints:
 - `GET /api/commands/suggest`
 - `POST /api/commands/run`
 - `POST /api/projects/create`
+- `GET /api/todos`
+- `POST /api/todos`
+- `POST /api/todos/{id}/complete`
+- `GET /api/worklog`
+- `POST /api/worklog`
+- `GET /api/worklog/summary`
 
 `POST /api/projects/create` defaults to `dry_run: true` so the dashboard can preview planned files before writing them. Existing files are not overwritten unless `force` is set.
 
@@ -89,7 +124,7 @@ npm install
 npm run web:dev
 ```
 
-Open `http://127.0.0.1:5173`.
+Open `http://127.0.0.1:5173`. The Daily Work page manages local todos, accepts quick notes, and generates a standup or ticket-update draft without sending it anywhere.
 
 ## Run Tests
 

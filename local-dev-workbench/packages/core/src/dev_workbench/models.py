@@ -109,3 +109,41 @@ class HandoffCreateRequest(BaseModel):
 class HandoffResult(BaseModel):
     path: str
     content: str
+
+
+class Todo(BaseModel):
+    id: int
+    text: str
+    completed: bool
+    created_at: str
+    completed_at: str | None = None
+
+
+class TodoCreateRequest(BaseModel):
+    text: str
+
+
+class WorkLogEntry(BaseModel):
+    id: int
+    text: str
+    created_at: str
+
+
+class WorkLogCreateRequest(BaseModel):
+    text: str
+
+
+class WorkLogSummary(BaseModel):
+    summary: str
+
+
+class TicketNote(BaseModel):
+    id: int
+    ticket_ref: str
+    text: str
+    created_at: str
+
+
+class TicketNoteCreateRequest(BaseModel):
+    ticket_ref: str
+    text: str

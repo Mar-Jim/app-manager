@@ -74,3 +74,35 @@ def test_handoff_create_and_show(tmp_path, monkeypatch):
     assert shown.exit_code == 0
     assert "## Current State" in shown.output
     assert "Keep context lean." in shown.output
+
+
+def test_todo_cli_add_list_complete(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    runner = CliRunner()
+
+    added = runner.invoke(app, ["todo", "add", "Write local todos"])
+    listed = runner.invoke(app, ["todo", "list"])
+    completed = runner.invoke(app, ["todo", "complete", "1"])
+    listed_again = runner.invoke(app, ["todo", "list"])
+
+    assert added.exit_code == 0
+    assert "1: Write local todos" in added.output
+    assert listed.exit_code == 0
+    assert "1. [ ] Write local todos" in listed.output
+    assert completed.exit_code == 0
+    assert "completed: 1: Write local todos" in completed.output
+    assert "1. [x] Write local todos" in listed_again.output
+
+
+def test_worklog_cli_add_and_summary(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    runner = CliRunner()
+
+    added = runner.invoke(app, ["worklog", "add", "Finished CLI support"])
+    summary = runner.invoke(app, ["worklog", "summary"])
+
+    assert added.exit_code == 0
+    assert "1: Finished CLI support" in added.output
+    assert summary.exit_code == 0
+    assert "Today I worked on:\n- Finished CLI support" in summary.output
+    assert "Completed:\n- None" in summary.output

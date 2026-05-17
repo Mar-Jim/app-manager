@@ -152,6 +152,16 @@ h2 {
   grid-template-columns: minmax(320px, 0.7fr) minmax(0, 1.3fr);
 }
 
+.work-layout {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: minmax(320px, 0.8fr) minmax(0, 1.2fr);
+}
+
+.summary-panel {
+  grid-column: 1 / -1;
+}
+
 .create-form {
   display: grid;
   gap: 14px;
@@ -193,6 +203,67 @@ h2 {
   border-color: #1f4f7a;
   color: #ffffff;
   text-align: center;
+}
+
+.inline-form {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: 1fr auto;
+  margin-bottom: 14px;
+}
+
+.inline-form button {
+  background: #1f4f7a;
+  border-color: #1f4f7a;
+  color: #ffffff;
+  text-align: center;
+}
+
+.todo-list,
+.worklog-list {
+  display: grid;
+  gap: 10px;
+}
+
+.todo-item {
+  align-items: center;
+  background: #f6f7f9;
+  border: 1px solid #e5e9ee;
+  border-radius: 6px;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: 1fr auto;
+  min-height: 48px;
+  padding: 8px 10px;
+}
+
+.todo-item.complete span {
+  color: #627181;
+  text-decoration: line-through;
+}
+
+.todo-item button {
+  min-height: 34px;
+  text-align: center;
+}
+
+.todo-item small {
+  color: #1d6b3a;
+  font-size: 13px;
+}
+
+.worklog-list {
+  border-top: 1px solid #e5e9ee;
+  margin-top: 16px;
+  padding-top: 14px;
+}
+
+.worklog-list p {
+  background: #f6f7f9;
+  border: 1px solid #e5e9ee;
+  border-radius: 6px;
+  margin: 0;
+  padding: 10px 12px;
 }
 
 .preview h3 {
@@ -427,6 +498,8 @@ code {
   .grid,
   .create-layout,
   .prompt-layout,
+  .work-layout,
+  .inline-form,
   .command {
     grid-template-columns: 1fr;
   }

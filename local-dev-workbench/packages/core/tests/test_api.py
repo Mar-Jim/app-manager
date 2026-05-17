@@ -122,3 +122,35 @@ def test_handoff_create_endpoint_writes_file(tmp_path, monkeypatch):
     assert payload["path"].endswith("handoff/current.md")
     assert "## Test Results" in payload["content"]
     assert (tmp_path / "handoff/current.md").exists()
+
+
+def test_todo_api_add_list_complete(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    client = TestClient(create_app())
+
+    created = client.post("/api/todos", json={"text": "Prepare standup"})
+    listed = client.get("/api/todos")
+    completed = client.post("/api/todos/1/complete")
+
+    assert created.status_code == 200
+    assert created.json()["text"] == "Prepare standup"
+    assert listed.status_code == 200
+    assert listed.json()[0]["completed"] is False
+    assert completed.status_code == 200
+    assert completed.json()["completed"] is True
+
+
+def test_worklog_api_add_list_summary(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    client = TestClient(create_app())
+
+    created = client.post("/api/worklog", json={"text": "Added worklog API"})
+    listed = client.get("/api/worklog")
+    summary = client.get("/api/worklog/summary")
+
+    assert created.status_code == 200
+    assert created.json()["text"] == "Added worklog API"
+    assert listed.status_code == 200
+    assert listed.json()[0]["text"] == "Added worklog API"
+    assert summary.status_code == 200
+    assert "Today I worked on:\n- Added worklog API" in summary.json()["summary"]

@@ -73,6 +73,24 @@ type HandoffResult = {
   content: string;
 };
 
+type Todo = {
+  id: number;
+  text: string;
+  completed: boolean;
+  created_at: string;
+  completed_at: string | null;
+};
+
+type WorkLogEntry = {
+  id: number;
+  text: string;
+  created_at: string;
+};
+
+type WorkLogSummary = {
+  summary: string;
+};
+
 const projectTypes: { value: ProjectKind; label: string }[] = [
   { value: "bundle-job", label: "Workflow job" },
   { value: "bundle-pipeline", label: "DLT or Lakeflow pipeline" },
@@ -92,7 +110,7 @@ function commandText(command: GeneratedCommand) {
 }
 
 function App() {
-  const [page, setPage] = useState<"overview" | "create" | "prompts">("overview");
+  const [page, setPage] = useState<"overview" | "create" | "prompts" | "work">("overview");
   const [health, setHealth] = useState<Health | null>(null);
   const [project, setProject] = useState<ProjectDetection | null>(null);
   const [commands, setCommands] = useState<GeneratedCommand[]>([]);
@@ -115,12 +133,27 @@ function App() {
   const [promptStatus, setPromptStatus] = useState<string | null>(null);
   const [promptError, setPromptError] = useState<string | null>(null);
   const [isPromptWorking, setIsPromptWorking] = useState(false);
+  const [todos, setTodos] = useState<Todo[]>([]);
+  const [todoText, setTodoText] = useState("");
+  const [worklog, setWorklog] = useState<WorkLogEntry[]>([]);
+  const [worklogText, setWorklogText] = useState("");
+  const [dailySummary, setDailySummary] = useState<string | null>(null);
+  const [workError, setWorkError] = useState<string | null>(null);
+  const [isWorkSaving, setIsWorkSaving] = useState(false);
 
   useEffect(() => {
     void fetch("/health").then((res) => res.json()).then(setHealth).catch(() => setHealth(null));
     void fetch("/api/project/detect").then((res) => res.json()).then(setProject).catch(() => setProject(null));
     void fetch("/api/commands/suggest").then((res) => res.json()).then(setCommands).catch(() => setCommands([]));
+    void refreshLocalWork();
   }, []);
+
+  async function refreshLocalWork() {
+    await Promise.all([
+      fetch("/api/todos").then((res) => res.json()).then(setTodos).catch(() => setTodos([])),
+      fetch("/api/worklog").then((res) => res.json()).then(setWorklog).catch(() => setWorklog([])),
+    ]);
+  }
 
   async function runSelectedCommand() {
     if (!selectedCommand) {
@@ -273,6 +306,90 @@ function App() {
     }
   }
 
+  async function addTodo() {
+    if (!todoText.trim()) {
+      return;
+    }
+    setIsWorkSaving(true);
+    setWorkError(null);
+    try {
+      const response = await fetch("/api/todos", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: todoText }),
+      });
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(payload.detail ?? "Todo save failed.");
+      }
+      setTodoText("");
+      setTodos((current) => [...current, payload]);
+    } catch (error) {
+      setWorkError(error instanceof Error ? error.message : "Todo save failed.");
+    } finally {
+      setIsWorkSaving(false);
+    }
+  }
+
+  async function completeTodo(todoId: number) {
+    setIsWorkSaving(true);
+    setWorkError(null);
+    try {
+      const response = await fetch(`/api/todos/${todoId}/complete`, { method: "POST" });
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(payload.detail ?? "Todo update failed.");
+      }
+      setTodos((current) => current.map((todo) => todo.id === todoId ? payload : todo));
+    } catch (error) {
+      setWorkError(error instanceof Error ? error.message : "Todo update failed.");
+    } finally {
+      setIsWorkSaving(false);
+    }
+  }
+
+  async function addWorklog() {
+    if (!worklogText.trim()) {
+      return;
+    }
+    setIsWorkSaving(true);
+    setWorkError(null);
+    try {
+      const response = await fetch("/api/worklog", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: worklogText }),
+      });
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(payload.detail ?? "Work log save failed.");
+      }
+      setWorklogText("");
+      setWorklog((current) => [...current, payload]);
+    } catch (error) {
+      setWorkError(error instanceof Error ? error.message : "Work log save failed.");
+    } finally {
+      setIsWorkSaving(false);
+    }
+  }
+
+  async function generateDailySummary() {
+    setIsWorkSaving(true);
+    setWorkError(null);
+    try {
+      const response = await fetch("/api/worklog/summary");
+      const payload: WorkLogSummary = await response.json();
+      if (!response.ok) {
+        throw new Error((payload as { detail?: string }).detail ?? "Summary generation failed.");
+      }
+      setDailySummary(payload.summary);
+    } catch (error) {
+      setWorkError(error instanceof Error ? error.message : "Summary generation failed.");
+    } finally {
+      setIsWorkSaving(false);
+    }
+  }
+
   return (
     <main className="shell">
       <header className="topbar">
@@ -294,6 +411,9 @@ function App() {
         </button>
         <button className={page === "prompts" ? "active" : ""} type="button" onClick={() => setPage("prompts")}>
           Codex Prompts
+        </button>
+        <button className={page === "work" ? "active" : ""} type="button" onClick={() => setPage("work")}>
+          Daily Work
         </button>
       </nav>
 
@@ -518,6 +638,72 @@ function App() {
               <pre className="prompt-output">{generatedPrompt.prompt}</pre>
             ) : (
               <p className="empty">Generated prompts include project detection, Databricks deployment constraints, selected recent command output, and local notes when available.</p>
+            )}
+          </article>
+        </section>
+      ) : null}
+
+      {page === "work" ? (
+        <section className="work-layout">
+          <article className="panel work-panel">
+            <h2>Todos</h2>
+            <form className="inline-form" onSubmit={(event) => {
+              event.preventDefault();
+              void addTodo();
+            }}>
+              <input value={todoText} onChange={(event) => setTodoText(event.target.value)} placeholder="Add a local todo" />
+              <button type="submit" disabled={isWorkSaving || !todoText.trim()}>Add</button>
+            </form>
+            <div className="todo-list">
+              {todos.length ? todos.map((todo) => (
+                <div className={`todo-item ${todo.completed ? "complete" : ""}`} key={todo.id}>
+                  <span>{todo.text}</span>
+                  {todo.completed ? <small>Completed</small> : (
+                    <button type="button" onClick={() => void completeTodo(todo.id)} disabled={isWorkSaving}>
+                      Complete
+                    </button>
+                  )}
+                </div>
+              )) : <p className="empty">No todos yet.</p>}
+            </div>
+          </article>
+
+          <article className="panel work-panel">
+            <h2>Quick Note</h2>
+            <form className="create-form" onSubmit={(event) => {
+              event.preventDefault();
+              void addWorklog();
+            }}>
+              <label>
+                Work log note
+                <textarea
+                  value={worklogText}
+                  onChange={(event) => setWorklogText(event.target.value)}
+                  placeholder="Capture what you did, a blocker, or a next step."
+                  rows={5}
+                />
+              </label>
+              <div className="form-actions">
+                <button type="submit" disabled={isWorkSaving || !worklogText.trim()}>Add Note</button>
+                <button type="button" disabled={isWorkSaving} onClick={() => void generateDailySummary()}>
+                  Generate Daily Summary
+                </button>
+              </div>
+            </form>
+            {workError ? <pre className="output error">{workError}</pre> : null}
+            <div className="worklog-list">
+              {worklog.length ? worklog.map((entry) => (
+                <p key={entry.id}>{entry.text}</p>
+              )) : <p className="empty">Notes added today appear here.</p>}
+            </div>
+          </article>
+
+          <article className="panel prompt-preview summary-panel">
+            <h2>Daily Summary Draft</h2>
+            {dailySummary ? (
+              <pre className="prompt-output">{dailySummary}</pre>
+            ) : (
+              <p className="empty">Generate a local draft for tickets or standup. Nothing is sent externally.</p>
             )}
           </article>
         </section>

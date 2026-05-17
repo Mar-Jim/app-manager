@@ -19,9 +19,15 @@ from dev_workbench.models import (
     PromptSaveResult,
     ProjectCreateRequest,
     ProjectCreateResult,
+    Todo,
+    TodoCreateRequest,
+    WorkLogCreateRequest,
+    WorkLogEntry,
+    WorkLogSummary,
 )
 from dev_workbench.prompts import create_handoff, generate_prompt, save_prompt, show_handoff
 from dev_workbench.projects import ProjectCreateError, create_project
+from dev_workbench.work import WorkbenchService
 
 
 def create_app() -> FastAPI:
@@ -101,6 +107,39 @@ def create_app() -> FastAPI:
         except FileNotFoundError as exc:
             raise HTTPException(status_code=404, detail="handoff file not found") from exc
         return HandoffResult(path=str(path), content=content)
+
+    @api.get("/api/todos", response_model=list[Todo])
+    def todos_list() -> list[Todo]:
+        return WorkbenchService().list_todos()
+
+    @api.post("/api/todos", response_model=Todo)
+    def todos_create(request: TodoCreateRequest) -> Todo:
+        try:
+            return WorkbenchService().add_todo(request.text)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    @api.post("/api/todos/{todo_id}/complete", response_model=Todo)
+    def todos_complete(todo_id: int) -> Todo:
+        try:
+            return WorkbenchService().complete_todo(todo_id)
+        except ValueError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+    @api.get("/api/worklog", response_model=list[WorkLogEntry])
+    def worklog_list() -> list[WorkLogEntry]:
+        return WorkbenchService().list_worklog()
+
+    @api.post("/api/worklog", response_model=WorkLogEntry)
+    def worklog_create(request: WorkLogCreateRequest) -> WorkLogEntry:
+        try:
+            return WorkbenchService().add_worklog(request.text)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    @api.get("/api/worklog/summary", response_model=WorkLogSummary)
+    def worklog_summary() -> WorkLogSummary:
+        return WorkLogSummary(summary=WorkbenchService().generate_daily_summary())
 
     return api
 
