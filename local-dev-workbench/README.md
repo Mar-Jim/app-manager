@@ -4,6 +4,10 @@ Local-first developer workbench for creating, editing, validating, testing, and 
 
 The initial version is intentionally conservative: it can detect local project types, expose local API data, render a local dashboard, and generate command suggestions. It does not execute risky commands automatically.
 
+## Tutorial
+
+Open the self-contained local tutorial at [`docs/tutorial.html`](docs/tutorial.html). It covers setup, local configuration, Databricks dev-target workflows, command approval, Codex prompts, handoffs, todos, and Azure DevOps draft updates.
+
 ## Requirements
 
 - Python 3.11+

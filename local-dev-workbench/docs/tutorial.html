@@ -1,0 +1,903 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Local Dev Workbench Tutorial</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f7f5ef;
+      --surface: #ffffff;
+      --surface-2: #f0f7f4;
+      --ink: #17201b;
+      --muted: #58635d;
+      --line: #d8ded8;
+      --green: #23745d;
+      --green-2: #dff1e9;
+      --blue: #245f91;
+      --blue-2: #e4eef8;
+      --amber: #9a6515;
+      --amber-2: #fff0cf;
+      --red: #a33b37;
+      --red-2: #fbe3df;
+      --code: #10231f;
+      --shadow: 0 18px 45px rgba(23, 32, 27, 0.09);
+      --radius: 8px;
+    }
+
+    * { box-sizing: border-box; }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      background:
+        linear-gradient(135deg, rgba(35, 116, 93, 0.10), transparent 32rem),
+        linear-gradient(225deg, rgba(36, 95, 145, 0.09), transparent 30rem),
+        var(--bg);
+      color: var(--ink);
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.58;
+    }
+
+    a {
+      color: var(--blue);
+      text-decoration-thickness: 2px;
+      text-underline-offset: 3px;
+    }
+
+    code, pre {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+    }
+
+    .shell {
+      max-width: 1440px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 290px minmax(0, 1fr);
+      gap: 28px;
+      padding: 24px;
+    }
+
+    .toc {
+      position: sticky;
+      top: 18px;
+      align-self: start;
+      max-height: calc(100vh - 36px);
+      overflow: auto;
+      padding: 18px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: rgba(255, 255, 255, 0.88);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(10px);
+    }
+
+    .toc h2 {
+      margin: 0 0 10px;
+      font-size: 0.9rem;
+      letter-spacing: 0;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .toc a {
+      display: block;
+      padding: 6px 8px;
+      border-radius: 6px;
+      color: var(--ink);
+      text-decoration: none;
+      font-size: 0.91rem;
+    }
+
+    .toc a:hover {
+      background: var(--green-2);
+      color: #0f4435;
+    }
+
+    main {
+      min-width: 0;
+    }
+
+    .hero {
+      min-height: 62vh;
+      display: grid;
+      align-content: center;
+      padding: 56px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background:
+        linear-gradient(120deg, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.78)),
+        radial-gradient(circle at 20% 20%, rgba(35, 116, 93, 0.22), transparent 28rem),
+        linear-gradient(135deg, #eef6f2, #fffaf0);
+      box-shadow: var(--shadow);
+    }
+
+    .eyebrow {
+      margin: 0 0 12px;
+      color: var(--green);
+      font-weight: 800;
+      text-transform: uppercase;
+      font-size: 0.78rem;
+      letter-spacing: 0;
+    }
+
+    h1, h2, h3 {
+      line-height: 1.15;
+      letter-spacing: 0;
+    }
+
+    h1 {
+      margin: 0;
+      max-width: 900px;
+      font-size: clamp(2.4rem, 6vw, 5.25rem);
+    }
+
+    .hero p {
+      max-width: 780px;
+      margin: 20px 0 0;
+      color: var(--muted);
+      font-size: 1.15rem;
+    }
+
+    .chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 28px;
+    }
+
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      min-height: 34px;
+      padding: 6px 11px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.74);
+      color: #25362f;
+      font-size: 0.88rem;
+      font-weight: 700;
+    }
+
+    section {
+      margin-top: 24px;
+      padding: 32px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: rgba(255, 255, 255, 0.92);
+      box-shadow: 0 10px 32px rgba(23, 32, 27, 0.06);
+    }
+
+    section h2 {
+      margin: 0 0 16px;
+      font-size: clamp(1.45rem, 3vw, 2rem);
+    }
+
+    h3 {
+      margin: 24px 0 8px;
+      font-size: 1.08rem;
+    }
+
+    p {
+      margin: 10px 0;
+    }
+
+    ul, ol {
+      padding-left: 1.25rem;
+    }
+
+    li + li {
+      margin-top: 6px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 16px;
+      margin: 18px 0;
+    }
+
+    .grid.three {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .card {
+      padding: 18px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--surface);
+    }
+
+    .card h3 {
+      margin-top: 0;
+    }
+
+    .callout {
+      margin: 18px 0;
+      padding: 16px 18px;
+      border-left: 5px solid var(--green);
+      border-radius: var(--radius);
+      background: var(--green-2);
+    }
+
+    .callout.warning {
+      border-left-color: var(--amber);
+      background: var(--amber-2);
+    }
+
+    .callout.danger {
+      border-left-color: var(--red);
+      background: var(--red-2);
+    }
+
+    .callout.info {
+      border-left-color: var(--blue);
+      background: var(--blue-2);
+    }
+
+    pre {
+      margin: 14px 0;
+      padding: 16px;
+      overflow-x: auto;
+      border-radius: var(--radius);
+      background: var(--code);
+      color: #e7fff5;
+      font-size: 0.9rem;
+      line-height: 1.5;
+      border: 1px solid #203d35;
+    }
+
+    :not(pre) > code {
+      padding: 0.15rem 0.35rem;
+      border-radius: 5px;
+      background: #edf2ee;
+      color: #1b4b3d;
+      font-size: 0.94em;
+    }
+
+    .diagram {
+      margin: 20px 0;
+      padding: 20px;
+      border: 1px dashed #b9c7bf;
+      border-radius: var(--radius);
+      background: linear-gradient(180deg, #ffffff, #f4faf7);
+    }
+
+    .flow {
+      display: grid;
+      gap: 10px;
+      justify-items: center;
+      text-align: center;
+    }
+
+    .node {
+      width: min(100%, 520px);
+      padding: 13px 16px;
+      border: 1px solid #afc6ba;
+      border-radius: var(--radius);
+      background: #ffffff;
+      font-weight: 800;
+      box-shadow: 0 8px 18px rgba(23, 32, 27, 0.06);
+    }
+
+    .node.optional {
+      border-style: dashed;
+      background: #f7fbff;
+      color: var(--blue);
+    }
+
+    .arrow {
+      color: var(--green);
+      font-size: 1.6rem;
+      line-height: 1;
+    }
+
+    .approval {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(92px, 1fr));
+      gap: 8px;
+      align-items: stretch;
+      margin-top: 14px;
+    }
+
+    .approval .step {
+      position: relative;
+      padding: 14px 10px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fff;
+      text-align: center;
+      font-weight: 800;
+      font-size: 0.9rem;
+    }
+
+    .approval .step:not(:last-child)::after {
+      content: ">";
+      position: absolute;
+      right: -9px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--green);
+      font-weight: 900;
+      z-index: 1;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 16px 0;
+      overflow: hidden;
+      border-radius: var(--radius);
+      font-size: 0.94rem;
+    }
+
+    th, td {
+      padding: 12px;
+      border: 1px solid var(--line);
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th {
+      background: #eef5f1;
+      color: #20342d;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 0.78rem;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    .low { background: var(--green-2); color: var(--green); }
+    .medium { background: var(--amber-2); color: var(--amber); }
+    .high { background: #f4e5ff; color: #6a3c91; }
+    .blocked { background: var(--red-2); color: var(--red); }
+    .planned { background: var(--blue-2); color: var(--blue); }
+
+    .mini {
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+
+    .footer {
+      padding: 24px 0 8px;
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+
+    @media (max-width: 1040px) {
+      .shell {
+        grid-template-columns: 1fr;
+      }
+
+      .toc {
+        position: static;
+        max-height: none;
+      }
+
+      .toc nav {
+        columns: 2;
+      }
+    }
+
+    @media (max-width: 760px) {
+      .shell {
+        padding: 12px;
+      }
+
+      .hero, section {
+        padding: 22px;
+      }
+
+      .grid, .grid.three {
+        grid-template-columns: 1fr;
+      }
+
+      .toc nav {
+        columns: 1;
+      }
+
+      .approval {
+        grid-template-columns: 1fr;
+      }
+
+      .approval .step:not(:last-child)::after {
+        content: "v";
+        right: 50%;
+        top: auto;
+        bottom: -16px;
+        transform: translateX(50%);
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <aside class="toc" aria-label="Table of contents">
+      <h2>Contents</h2>
+      <nav>
+        <a href="#overview">Overview</a>
+        <a href="#architecture">Architecture</a>
+        <a href="#security">Security Model</a>
+        <a href="#setup">First-Time Setup</a>
+        <a href="#config">Local Configuration</a>
+        <a href="#env">Environment Variables</a>
+        <a href="#databricks">Databricks Setup</a>
+        <a href="#running">Running the App</a>
+        <a href="#dashboard">Using the Dashboard</a>
+        <a href="#detection">Project Detection</a>
+        <a href="#approval">Command Approval</a>
+        <a href="#bundles">Creating Bundles</a>
+        <a href="#prompts">Codex Prompts</a>
+        <a href="#handoff">Handoff Workflow</a>
+        <a href="#todos">Todos and Worklog</a>
+        <a href="#ado">Azure DevOps</a>
+        <a href="#checklist">Testing Checklist</a>
+        <a href="#troubleshooting">Troubleshooting</a>
+        <a href="#onboarding">Team Onboarding</a>
+        <a href="#faq">FAQ</a>
+      </nav>
+    </aside>
+
+    <main>
+      <header class="hero">
+        <p class="eyebrow">Local-first developer workbench</p>
+        <h1>Local Dev Workbench Tutorial</h1>
+        <p>
+          A practical guide for using this repo to detect projects, generate Databricks Asset Bundle starters,
+          review local command suggestions, create Codex prompts and handoffs, track local work, and draft
+          Azure DevOps updates without committing secrets or surprising teammates.
+        </p>
+        <div class="chips" aria-label="Safety highlights">
+          <span class="chip">Runs on 127.0.0.1</span>
+          <span class="chip">SQLite local state</span>
+          <span class="chip">Dev target only</span>
+          <span class="chip">Approval before risky actions</span>
+          <span class="chip">PATs stay in environment variables</span>
+        </div>
+      </header>
+
+      <section id="overview">
+        <h2>A. Overview</h2>
+        <div class="grid">
+          <div class="card">
+            <h3>What It Does</h3>
+            <p>
+              <code>local-dev-workbench</code> is a local Typer CLI, FastAPI backend, and React dashboard for day-to-day developer workflows around Databricks and assistant-assisted coding.
+            </p>
+            <ul>
+              <li>Detects local project type from files in the current folder.</li>
+              <li>Generates starter Databricks Asset Bundle projects.</li>
+              <li>Suggests known commands such as bundle validation and tests.</li>
+              <li>Creates structured Codex prompts and <code>handoff/current.md</code> files.</li>
+              <li>Stores todos, worklog entries, local ticket notes, and ADO update drafts in SQLite.</li>
+            </ul>
+          </div>
+          <div class="card">
+            <h3>Who It Is For</h3>
+            <p>
+              Developers who already use Git, Python, Databricks, and VS Code, but want a safer local dashboard for repeated setup, validation, prompt, handoff, and ticket-update routines.
+            </p>
+            <p>
+              It is especially useful in restrictive company environments where secrets, deployment rights, and external writes need careful handling.
+            </p>
+          </div>
+        </div>
+        <div class="grid">
+          <div class="card">
+            <h3>Problems It Solves</h3>
+            <ul>
+              <li>Reduces copy-paste drift in Databricks starter repos.</li>
+              <li>Makes command risk visible before execution.</li>
+              <li>Gives Codex a repeatable, constraint-aware prompt format.</li>
+              <li>Keeps handoff context current between coding sessions.</li>
+              <li>Drafts Azure DevOps updates locally before posting.</li>
+            </ul>
+          </div>
+          <div class="card">
+            <h3>What It Does Not Do Yet</h3>
+            <ul>
+              <li>It does not replace the external deployer repo.</li>
+              <li>It does not generate <code>stg</code> or <code>prd</code> bundle targets.</li>
+              <li>It does not store Azure DevOps PAT values.</li>
+              <li>It does not include an implemented VS Code extension yet; <code>apps/vscode</code> is a placeholder.</li>
+              <li>It does not provide a CLI command to persist ADO config metadata yet.</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <section id="architecture">
+        <h2>B. Architecture Diagram</h2>
+        <p>The implemented app is local-first: browser UI to local backend, local backend to Python core, Python core to local tools and storage.</p>
+        <div class="diagram" role="img" aria-label="Architecture flow">
+          <div class="flow">
+            <div class="node">Local Web UI<br><span class="mini">React + Vite dashboard at 127.0.0.1:5173</span></div>
+            <div class="arrow">v</div>
+            <div class="node">FastAPI Local Backend<br><span class="mini"><code>workbench serve</code>, default 127.0.0.1:8787</span></div>
+            <div class="arrow">v</div>
+            <div class="node">Python Core<br><span class="mini">Detection, prompts, generators, command plans, ADO service, SQLite services</span></div>
+            <div class="arrow">v</div>
+            <div class="node">CLI / SQLite / Templates / Databricks CLI / Azure DevOps</div>
+            <div class="arrow">+</div>
+            <div class="node optional">VS Code Extension<br><span class="mini">Optional future integration; current folder is a placeholder</span></div>
+          </div>
+        </div>
+        <div class="callout info">
+          <strong>Implemented first:</strong> CLI, FastAPI, React dashboard, Jinja templates, SQLite persistence, generated command suggestions, prompt and handoff generation, and permissioned Azure DevOps draft/post flow.
+        </div>
+      </section>
+
+      <section id="security">
+        <h2>C. Security Model</h2>
+        <div class="grid three">
+          <div class="card">
+            <h3>Local-First</h3>
+            <p>Source code, detection results, command output, todos, notes, and drafts stay on your machine. The backend binds to <code>127.0.0.1</code> by default.</p>
+          </div>
+          <div class="card">
+            <h3>No Secrets in Git</h3>
+            <p>Secrets belong in environment variables or existing local credential stores. Do not put PATs, tokens, hostnames, or customer data in docs, prompts, handoffs, or config committed to Git.</p>
+          </div>
+          <div class="card">
+            <h3>Approval Gates</h3>
+            <p>Generated commands include a risk level. Medium and high risk actions require explicit approval. Destructive command terms are blocked or unsupported.</p>
+          </div>
+        </div>
+        <ul>
+          <li>Databricks project repos should define the <code>dev</code> target only.</li>
+          <li><code>stg</code> and <code>prd</code> promotion belongs to the external deployer repo.</li>
+          <li>Azure DevOps updates are drafted locally first.</li>
+          <li>Posting to Azure DevOps requires explicit <code>--from-draft --yes</code> in the CLI or the web confirmation checkbox.</li>
+        </ul>
+        <div class="callout danger">
+          <strong>Do not commit local secrets.</strong> Keep <code>.workbench/</code>, <code>.workbench.local.yml</code>, user config files, local SQLite databases, and credential-bearing shell profiles out of commits.
+        </div>
+      </section>
+
+      <section id="setup">
+        <h2>D. First-Time Setup</h2>
+        <h3>Clone and Install Python Package</h3>
+        <pre><code>git clone &lt;YOUR_REPO_URL&gt;
+cd local-dev-workbench
+python -m venv .venv
+source .venv/bin/activate
+python -m pip install -e ".[dev]"</code></pre>
+
+        <h3>Windows PowerShell</h3>
+        <pre><code>git clone &lt;YOUR_REPO_URL&gt;
+cd local-dev-workbench
+py -3.11 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install -e ".[dev]"</code></pre>
+
+        <h3>Install Frontend Dependencies</h3>
+        <pre><code>npm install</code></pre>
+
+        <h3>Run Tests</h3>
+        <pre><code>pytest
+npm run web:build</code></pre>
+
+        <h3>Start Backend and Web UI</h3>
+        <pre><code># Terminal 1
+source .venv/bin/activate
+workbench serve
+
+# Terminal 2
+npm run web:dev</code></pre>
+        <p>Open the dashboard at <code>http://127.0.0.1:5173</code>.</p>
+      </section>
+
+      <section id="config">
+        <h2>E. Local Configuration</h2>
+        <p>
+          The repo currently reads Azure DevOps settings from environment variables and can store metadata in SQLite. The following YAML layout is the recommended local config shape for repo-local and user-level settings as config-file support grows.
+        </p>
+        <table>
+          <thead><tr><th>Location</th><th>Purpose</th><th>Git Status</th></tr></thead>
+          <tbody>
+            <tr><td><code>.workbench.local.yml</code></td><td>Repo-local overrides for your machine.</td><td>Should be gitignored.</td></tr>
+            <tr><td><code>~/.local-dev-workbench/config.yml</code></td><td>User-level defaults shared across local repos.</td><td>Outside the repo.</td></tr>
+          </tbody>
+        </table>
+        <pre><code>workspace:
+  default_project_root: "/path/to/repos"
+  deployment_strategy: "external_deployer"
+
+databricks:
+  default_target: "dev"
+  default_profile: "&lt;YOUR_DATABRICKS_PROFILE&gt;"
+  allow_deploy_dev: true
+  allow_deploy_stg: false
+  allow_deploy_prd: false
+
+security:
+  block_destructive_commands: true
+  require_confirmation_for:
+    - "deploy"
+    - "git_push"
+    - "ticket_post"
+
+azure_devops:
+  organization_url: "https://dev.azure.com/&lt;YOUR_AZURE_DEVOPS_ORG&gt;"
+  project: "&lt;YOUR_AZURE_DEVOPS_PROJECT&gt;"
+  auth_mode: "env_pat"
+  pat_env_var: "AZURE_DEVOPS_PAT"</code></pre>
+        <div class="callout warning">
+          <strong>Accuracy note:</strong> as implemented today, ADO setup is done with environment variables such as <code>WORKBENCH_ADO_ORGANIZATION_URL</code>, <code>WORKBENCH_ADO_PROJECT</code>, and <code>WORKBENCH_ADO_PAT_ENV_VAR</code>. The YAML paths above are recommended local config conventions, not the current primary loader.
+        </div>
+      </section>
+
+      <section id="env">
+        <h2>F. Environment Variables</h2>
+        <p>Use environment variables for tokens and machine-specific settings. Do not commit them.</p>
+        <h3>Mac/Linux</h3>
+        <pre><code>export AZURE_DEVOPS_PAT="&lt;YOUR_LOCAL_PAT&gt;"
+export WORKBENCH_ADO_ORGANIZATION_URL="https://dev.azure.com/&lt;YOUR_AZURE_DEVOPS_ORG&gt;"
+export WORKBENCH_ADO_PROJECT="&lt;YOUR_AZURE_DEVOPS_PROJECT&gt;"
+export WORKBENCH_ADO_PAT_ENV_VAR="AZURE_DEVOPS_PAT"
+export DATABRICKS_CONFIG_PROFILE="&lt;YOUR_DATABRICKS_PROFILE&gt;"</code></pre>
+        <h3>Windows PowerShell</h3>
+        <pre><code>$env:AZURE_DEVOPS_PAT = "&lt;YOUR_LOCAL_PAT&gt;"
+$env:WORKBENCH_ADO_ORGANIZATION_URL = "https://dev.azure.com/&lt;YOUR_AZURE_DEVOPS_ORG&gt;"
+$env:WORKBENCH_ADO_PROJECT = "&lt;YOUR_AZURE_DEVOPS_PROJECT&gt;"
+$env:WORKBENCH_ADO_PAT_ENV_VAR = "AZURE_DEVOPS_PAT"
+$env:DATABRICKS_CONFIG_PROFILE = "&lt;YOUR_DATABRICKS_PROFILE&gt;"</code></pre>
+        <div class="callout info">
+          The README documents the default PAT env var name as <code>AZURE_DEVOPS_EXT_PAT</code>. Setting <code>WORKBENCH_ADO_PAT_ENV_VAR="AZURE_DEVOPS_PAT"</code> lets this app read the placeholder requested in this tutorial without changing code.
+        </div>
+      </section>
+
+      <section id="databricks">
+        <h2>G. Databricks Setup</h2>
+        <p>The workbench does not replace the Databricks CLI. It suggests and, after approval, runs known Databricks CLI commands against local project folders.</p>
+        <pre><code>databricks --version
+databricks auth profiles
+databricks bundle validate -t dev</code></pre>
+        <ul>
+          <li>Install the Databricks CLI using your company-approved method.</li>
+          <li>Confirm your local profile exists before validating bundles.</li>
+          <li>Run validation manually once in a generated or existing bundle repo.</li>
+          <li>Use project repos for <code>dev</code> target definitions only.</li>
+          <li>Use the external deployer repo for <code>stg</code> and <code>prd</code> promotion.</li>
+        </ul>
+        <div class="callout warning">
+          The generator enforces <code>--target dev</code>; trying to generate another target raises an error. This is intentional.
+        </div>
+      </section>
+
+      <section id="running">
+        <h2>H. Running the App</h2>
+        <pre><code>workbench doctor
+workbench detect
+workbench detect --json
+workbench commands suggest
+workbench serve</code></pre>
+        <p>In another terminal:</p>
+        <pre><code>npm run web:dev</code></pre>
+        <p>Then open <code>http://127.0.0.1:5173</code>. <code>workbench doctor</code> initializes local SQLite under <code>.workbench/workbench.sqlite3</code> and reports that command execution requires approval.</p>
+      </section>
+
+      <section id="dashboard">
+        <h2>I. Using the Dashboard</h2>
+        <div class="grid">
+          <div class="card"><h3>Overview</h3><p>Shows backend health, current workspace detection, Databricks bundle details, and generated commands.</p></div>
+          <div class="card"><h3>Create Project</h3><p>Previews generated files first, then writes bundle starter projects when you choose to create them.</p></div>
+          <div class="card"><h3>Prompts</h3><p>Builds structured Codex prompts and can save prompt files locally.</p></div>
+          <div class="card"><h3>Daily Work</h3><p>Manages todos, worklog notes, daily summary drafts, and handoff creation.</p></div>
+          <div class="card"><h3>Tickets</h3><p>Lists ADO tickets when configured, stores local notes, generates draft updates, and posts only after confirmation.</p></div>
+          <div class="card"><h3>Command Output</h3><p>Shows command results after a generated command is approved and run through the local backend.</p></div>
+        </div>
+      </section>
+
+      <section id="detection">
+        <h2>J. Project Detection Examples</h2>
+        <table>
+          <thead><tr><th>Folder Markers</th><th>Detected Type</th><th>What Happens</th></tr></thead>
+          <tbody>
+            <tr><td><code>databricks.yml</code> or <code>databricks.yaml</code></td><td>Databricks Asset Bundle</td><td>Parses bundle targets and suggests validation, tests, dev deploy, and JSON bundle summary commands.</td></tr>
+            <tr><td><code>app.yaml</code> plus <code>app.py</code>, <code>main.py</code>, or package files</td><td>Databricks App</td><td>Reports app type. Command suggestions are not implemented for this type yet.</td></tr>
+            <tr><td><code>pyproject.toml</code></td><td>Python project</td><td>Reports Python project. Bundle-specific commands are not shown.</td></tr>
+            <tr><td>No known markers</td><td>Unknown folder</td><td>Shows setup-friendly detection output and no generated commands.</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section id="approval">
+        <h2>K. Command Approval Workflow</h2>
+        <div class="diagram" role="img" aria-label="Command approval flow">
+          <div class="approval">
+            <div class="step">Suggested Command</div>
+            <div class="step">Review Risk</div>
+            <div class="step">Approve</div>
+            <div class="step">Run</div>
+            <div class="step">View Output</div>
+            <div class="step">Save Result</div>
+          </div>
+        </div>
+        <table>
+          <thead><tr><th>Risk</th><th>Examples</th><th>Rule</th></tr></thead>
+          <tbody>
+            <tr><td><span class="badge low">low</span></td><td><code>pytest</code>, <code>databricks bundle validate -t dev</code></td><td>Can run after normal user action.</td></tr>
+            <tr><td><span class="badge medium">medium</span></td><td><code>databricks bundle deploy -t dev</code></td><td>Requires explicit confirmation such as <code>--yes</code>.</td></tr>
+            <tr><td><span class="badge high">high</span></td><td><code>git push</code>, ticket post</td><td>Requires explicit approval and should be reviewed carefully.</td></tr>
+            <tr><td><span class="badge blocked">destructive</span></td><td><code>delete</code>, <code>drop</code>, <code>remove</code>, <code>rm</code></td><td>Blocked or unsupported.</td></tr>
+          </tbody>
+        </table>
+        <pre><code>workbench commands suggest
+workbench commands run validate-bundle
+workbench commands run deploy-dev --yes</code></pre>
+      </section>
+
+      <section id="bundles">
+        <h2>L. Creating Databricks Asset Bundles</h2>
+        <p>The app includes Jinja-backed starter generators for compact Databricks Asset Bundle repos. All generated bundles use a <code>dev</code> target only.</p>
+        <pre><code>workbench create bundle-job my_job
+workbench create bundle-pipeline my_pipeline
+workbench create bundle-sql my_sql_project
+workbench create bundle-dashboard my_dashboard</code></pre>
+        <table>
+          <thead><tr><th>Generator</th><th>Generated Files</th></tr></thead>
+          <tbody>
+            <tr><td><code>bundle-job</code></td><td><code>databricks.yml</code>, <code>resources/job.yml</code>, <code>src/jobs/main.py</code>, tests, README, <code>.gitignore</code>.</td></tr>
+            <tr><td><code>bundle-pipeline</code></td><td><code>databricks.yml</code>, pipeline resource YAML, pipeline Python source, tests, README.</td></tr>
+            <tr><td><code>bundle-sql</code></td><td><code>databricks.yml</code>, SQL resource YAML, starter SQL file, tests, README.</td></tr>
+            <tr><td><code>bundle-dashboard</code></td><td><code>databricks.yml</code>, dashboard resource YAML, dashboard README, project README.</td></tr>
+          </tbody>
+        </table>
+        <p>Useful options:</p>
+        <pre><code>workbench create bundle-job my_job --output-dir /path/to/repos
+workbench create bundle-job my_job --include-github-action
+workbench create bundle-job my_job --force</code></pre>
+      </section>
+
+      <section id="prompts">
+        <h2>M. Codex Prompt Workflow</h2>
+        <p>
+          The prompt generator creates structured prompts with repo context, constraints, company/security assumptions, Databricks deployment strategy, validation commands, and a handoff update requirement.
+        </p>
+        <pre><code>workbench prompt create --task-type add-workflow
+workbench prompt create --task-type add-workflow --task "Add a dashboard filter" --save</code></pre>
+        <ol>
+          <li>Run detection in the target repo.</li>
+          <li>Create a prompt with a specific task description.</li>
+          <li>Review for secrets or private data before using it.</li>
+          <li>Save it locally if useful.</li>
+          <li>Copy the prompt into Codex and keep validation commands visible.</li>
+        </ol>
+        <div class="callout info">
+          Prompts intentionally include constraints such as dev-only bundle targets, external deployer ownership for <code>stg</code> and <code>prd</code>, and approval before deployment or cloud-mutating commands.
+        </div>
+      </section>
+
+      <section id="handoff">
+        <h2>N. Handoff Workflow</h2>
+        <p>
+          <code>handoff/current.md</code> keeps context fresh between Codex chats. Create or update it when a task changes direction, before ending a session, after meaningful files change, or before handing work to a teammate.
+        </p>
+        <pre><code>workbench handoff create
+workbench handoff show</code></pre>
+        <p>Recommended structure:</p>
+        <pre><code>Goal
+Current State
+Architecture Decisions
+Files Changed
+Commands Run
+Test Results
+Open Issues
+Next Recommended Codex Prompt
+Constraints
+Do Not Change</code></pre>
+        <p>A good cadence is: update handoff after implementation, after validation, and any time there is a blocker or assumption the next session must know.</p>
+      </section>
+
+      <section id="todos">
+        <h2>O. Todos and Worklog</h2>
+        <p>Todos and worklog entries are stored locally in <code>.workbench/workbench.sqlite3</code> for the current working directory.</p>
+        <pre><code>workbench todo add "Validate bundle generator"
+workbench todo list
+workbench todo complete 1
+
+workbench worklog add "Tested Databricks CLI auth"
+workbench worklog summary</code></pre>
+        <p>The daily summary is a local draft with sections for work completed, blockers, and next steps. It is not posted anywhere automatically.</p>
+      </section>
+
+      <section id="ado">
+        <h2>P. Azure DevOps Workflow</h2>
+        <p>Azure DevOps support is permissioned and local-first. Ticket reads use the Azure DevOps REST API when configured. Local notes and draft updates are stored in SQLite.</p>
+        <h3>Configure Org, Project, and PAT Env Var</h3>
+        <pre><code>export WORKBENCH_ADO_ORGANIZATION_URL="https://dev.azure.com/&lt;YOUR_AZURE_DEVOPS_ORG&gt;"
+export WORKBENCH_ADO_PROJECT="&lt;YOUR_AZURE_DEVOPS_PROJECT&gt;"
+export WORKBENCH_ADO_PAT_ENV_VAR="AZURE_DEVOPS_PAT"
+export AZURE_DEVOPS_PAT="&lt;YOUR_LOCAL_PAT&gt;"</code></pre>
+        <h3>Implemented Commands</h3>
+        <pre><code>workbench ado tickets list
+workbench ado ticket show &lt;TICKET_ID&gt;
+workbench ado ticket draft-update &lt;TICKET_ID&gt; --note "Validated locally"
+workbench ado ticket post-update &lt;TICKET_ID&gt; --from-draft --yes</code></pre>
+        <div class="callout warning">
+          <strong>Planned command:</strong> <code>workbench ado config check</code> is not implemented yet. For now, use <code>workbench ado tickets list</code>; if config or token values are missing, it prints setup guidance instead of crashing.
+        </div>
+        <p>Posting should remain optional. Draft first, review the draft, then post only when you have explicit approval to update the ticket.</p>
+      </section>
+
+      <section id="checklist">
+        <h2>Q. Testing Checklist</h2>
+        <table>
+          <thead><tr><th>Check</th><th>How to Verify</th><th>Expected Result</th></tr></thead>
+          <tbody>
+            <tr><td>App installs</td><td><code>python -m pip install -e ".[dev]"</code></td><td>Package installs and <code>workbench</code> command is available.</td></tr>
+            <tr><td>CLI doctor passes</td><td><code>workbench doctor</code></td><td>Status is ok and SQLite path is shown.</td></tr>
+            <tr><td>Tests pass</td><td><code>pytest</code></td><td>Python test suite passes.</td></tr>
+            <tr><td>Web UI loads</td><td><code>workbench serve</code> plus <code>npm run web:dev</code></td><td>Dashboard opens at 127.0.0.1:5173.</td></tr>
+            <tr><td>Project detection works</td><td><code>workbench detect</code></td><td>Reports known project markers.</td></tr>
+            <tr><td>Bundle validation suggestion appears</td><td><code>workbench commands suggest</code> in a bundle repo</td><td>Shows <code>validate-bundle</code> command.</td></tr>
+            <tr><td>Commands require approval</td><td><code>workbench commands run deploy-dev</code></td><td>Fails until <code>--yes</code> is provided.</td></tr>
+            <tr><td>Bundle generator creates dev-only target</td><td>Create a starter and inspect <code>databricks.yml</code></td><td>Only <code>dev</code> target is generated.</td></tr>
+            <tr><td>Codex prompt includes external deployer constraints</td><td><code>workbench prompt create</code></td><td>Prompt says <code>stg/prd</code> belong outside project repo.</td></tr>
+            <tr><td>Handoff file is created</td><td><code>workbench handoff create</code></td><td><code>handoff/current.md</code> exists.</td></tr>
+            <tr><td>Todos persist locally</td><td>Add and list a todo</td><td>Todo remains in local SQLite.</td></tr>
+            <tr><td>Azure DevOps lists tickets if configured</td><td><code>workbench ado tickets list</code></td><td>Tickets list or setup guidance appears.</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section id="troubleshooting">
+        <h2>R. Troubleshooting</h2>
+        <div class="grid">
+          <div class="card"><h3><code>workbench</code> Not Found</h3><p>Activate <code>.venv</code> and reinstall with <code>python -m pip install -e ".[dev]"</code>.</p></div>
+          <div class="card"><h3>Python Version Mismatch</h3><p>Use Python 3.11 or newer. Recreate the virtual environment with the correct interpreter.</p></div>
+          <div class="card"><h3><code>npm install</code> Fails</h3><p>Use Node.js 20+ and the company-approved npm registry or proxy configuration.</p></div>
+          <div class="card"><h3>Backend Port in Use</h3><p>Run <code>workbench serve --port 8788</code> and adjust the Vite proxy if needed.</p></div>
+          <div class="card"><h3>Databricks CLI Not Authenticated</h3><p>Run <code>databricks auth profiles</code> and fix your local profile before using bundle commands.</p></div>
+          <div class="card"><h3>ADO PAT Missing</h3><p>Set the PAT env var named by <code>WORKBENCH_ADO_PAT_ENV_VAR</code>. Do not store the token in SQLite or Git.</p></div>
+          <div class="card"><h3>Detection Says Unknown</h3><p>Run from the project root and check for expected markers such as <code>databricks.yml</code>, <code>app.yaml</code>, or <code>pyproject.toml</code>.</p></div>
+          <div class="card"><h3>Bundle Validate Fails</h3><p>Run the Databricks CLI command manually, inspect YAML/resource paths, and confirm you are targeting <code>dev</code>.</p></div>
+          <div class="card"><h3>Local Config Accidentally Committed</h3><p>Remove secrets from Git history using your approved company process, rotate exposed credentials, and add the path to <code>.gitignore</code>.</p></div>
+        </div>
+      </section>
+
+      <section id="onboarding">
+        <h2>S. Team Onboarding Guide</h2>
+        <ol>
+          <li>Clone the repo from <code>&lt;YOUR_REPO_URL&gt;</code>.</li>
+          <li>Create a Python 3.11+ virtual environment and install with <code>python -m pip install -e ".[dev]"</code>.</li>
+          <li>Run <code>npm install</code>.</li>
+          <li>Configure local environment variables for Databricks and Azure DevOps if needed.</li>
+          <li>Run <code>workbench doctor</code> and <code>pytest</code>.</li>
+          <li>Confirm Databricks CLI auth with <code>databricks auth profiles</code>.</li>
+          <li>Start <code>workbench serve</code> and <code>npm run web:dev</code>.</li>
+          <li>Open the dashboard and run project detection.</li>
+          <li>Create the first handoff with <code>workbench handoff create</code>.</li>
+          <li>Before every commit, check that secrets, local config, SQLite files, and private output are not staged.</li>
+        </ol>
+      </section>
+
+      <section id="faq">
+        <h2>T. FAQ</h2>
+        <div class="grid">
+          <div class="card"><h3>Does this deploy to production?</h3><p>No. Project repos are dev-focused. Production promotion belongs to the external deployer repo.</p></div>
+          <div class="card"><h3>Does this replace the deployer repo?</h3><p>No. It complements it by helping developers validate and organize local dev work.</p></div>
+          <div class="card"><h3>Does it send code to AI?</h3><p>No. It generates local prompt text. You decide what to copy into Codex after reviewing it.</p></div>
+          <div class="card"><h3>Where are todos stored?</h3><p>In local SQLite at <code>.workbench/workbench.sqlite3</code> under the current working directory.</p></div>
+          <div class="card"><h3>Can I use it without Azure DevOps?</h3><p>Yes. The rest of the CLI and dashboard continue to work. The Tickets page shows setup guidance when ADO is not configured.</p></div>
+          <div class="card"><h3>Can I use it without VS Code?</h3><p>Yes. VS Code integration is optional and future-facing. The current app runs from the CLI and browser.</p></div>
+          <div class="card"><h3>Why only dev target in project repos?</h3><p>It keeps local developer repos simple and avoids duplicating staging/production promotion logic owned by the external deployer repo.</p></div>
+          <div class="card"><h3>Can I customize templates?</h3><p>Yes. Templates live under <code>templates/databricks_bundle_*</code>. Keep changes dev-only unless the deployment model changes.</p></div>
+        </div>
+      </section>
+
+      <p class="footer">Standalone file: no external fonts, images, scripts, CDNs, or JavaScript libraries required.</p>
+    </main>
+  </div>
+</body>
+</html>

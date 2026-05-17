@@ -2,93 +2,110 @@
 
 ## Goal
 
-Add Azure DevOps integration in local-first, permissioned mode so assigned tickets can be read, local notes can be attached, update drafts can be generated, and approved drafts can be posted only after explicit confirmation.
+Create a polished standalone HTML tutorial for `local-dev-workbench`, link it from the README, verify available tests, and document the work for the next Codex session.
 
 ## Current State
 
-- `local-dev-workbench` is a Typer/FastAPI/React monorepo for local-first Databricks and assistant workflows.
-- Azure DevOps support now lives in `dev_workbench.ado`.
-- SQLite initialization creates:
-  - `ado_config` for metadata such as organization URL, project, query, auth mode, and PAT env var name
-  - `ticket_update_drafts` for local draft updates and posted status
-  - existing local work tables for todos, work logs, and ticket notes
-- PAT values are not stored in SQLite. The implemented auth mode is `pat_env`.
-- Config can come from SQLite metadata or environment variables:
-  - `WORKBENCH_ADO_ORGANIZATION_URL`
-  - `WORKBENCH_ADO_PROJECT`
-  - `WORKBENCH_ADO_DEFAULT_QUERY`
-  - `WORKBENCH_ADO_AUTH_MODE`
-  - `WORKBENCH_ADO_PAT_ENV_VAR`
-- If auth is missing, CLI/API/UI return setup guidance and keep running.
+- `docs/tutorial.html` now exists as a single self-contained HTML file.
+- The tutorial is designed for local browser use and does not rely on external CDNs, fonts, images, scripts, or JavaScript libraries.
+- `README.md` links to the tutorial near the top of the file.
+- The tutorial reflects the implemented repo shape: Typer CLI, FastAPI backend, React/Vite dashboard, Python core, Jinja templates, SQLite local state, Databricks CLI command suggestions, and Azure DevOps draft/post workflow.
 
-## CLI
+## Architecture Decisions
 
-- `workbench ado tickets list`
-- `workbench ado ticket show ID`
-- `workbench ado ticket draft-update ID`
-- `workbench ado ticket draft-update ID --note "local note"`
-- `workbench ado ticket post-update ID --from-draft --yes`
-
-Posting refuses to run unless both `--from-draft` and `--yes` are present.
-
-## API
-
-- `GET /api/ado/tickets`
-- `GET /api/ado/tickets/{id}`
-- `POST /api/ado/tickets/{id}/notes`
-- `POST /api/ado/tickets/{id}/draft-update`
-- `POST /api/ado/tickets/{id}/post-update`
-
-Posting requires `{"from_draft": true, "yes": true}`.
-
-## Web UI
-
-- Added a Tickets page.
-- Shows assigned tickets when ADO config and token are available.
-- Shows setup guidance when config or token is missing.
-- Lets the user select an active ticket.
-- Lets the user save local notes.
-- Generates a draft update from local notes.
-- Posts only after the confirmation checkbox is selected.
+- Documented the implemented architecture first:
+  - Local Web UI
+  - FastAPI Local Backend
+  - Python Core
+  - CLI / SQLite / Templates / Databricks CLI / Azure DevOps
+- Marked the VS Code extension as optional/future because `apps/vscode` is currently a placeholder.
+- Kept all token examples as placeholders and avoided fake secret values.
+- Documented recommended YAML config locations while clearly noting that the current implemented Azure DevOps setup path is environment variables.
 
 ## Files Changed
 
-- `packages/core/src/dev_workbench/ado.py`
-- `packages/core/src/dev_workbench/models.py`
-- `packages/core/src/dev_workbench/storage.py`
-- `packages/core/src/dev_workbench/cli.py`
-- `packages/core/src/dev_workbench/api/app.py`
-- `packages/core/tests/test_ado.py`
-- `packages/core/tests/test_api.py`
-- `packages/core/tests/test_cli.py`
-- `apps/web/src/main.tsx`
-- `apps/web/src/styles.css`
+- `docs/tutorial.html`
 - `README.md`
-- `docs/security_model.md`
 - `handoff/current.md`
+
+## Tutorial Sections Added
+
+- A. Overview
+- B. Architecture diagram
+- C. Security model
+- D. First-time setup
+- E. Local configuration
+- F. Environment variables
+- G. Databricks setup
+- H. Running the app
+- I. Using the dashboard
+- J. Project detection examples
+- K. Command approval workflow
+- L. Creating Databricks Asset Bundles
+- M. Codex prompt workflow
+- N. Handoff workflow
+- O. Todos and worklog
+- P. Azure DevOps workflow
+- Q. Testing checklist
+- R. Troubleshooting
+- S. Team onboarding guide
+- T. FAQ
 
 ## Commands Run
 
-- `.venv/bin/pytest packages/core/tests/test_ado.py packages/core/tests/test_api.py packages/core/tests/test_cli.py` -> passed, 30 tests.
-- `npm run web:build` -> passed, TypeScript and Vite production build completed.
+- `pwd`
+- `rg --files`
+- `git status --short`
+- `sed -n '1,260p' README.md`
+- `sed -n '1,260p' packages/core/src/dev_workbench/cli.py`
+- `sed -n '260,560p' packages/core/src/dev_workbench/cli.py`
+- `sed -n '1,260p' packages/core/src/dev_workbench/commands.py`
+- `sed -n '1,260p' packages/core/src/dev_workbench/projects.py`
+- `sed -n '1,260p' packages/core/src/dev_workbench/detect.py`
+- `sed -n '1,260p' packages/core/src/dev_workbench/prompts.py`
+- `sed -n '1,280p' packages/core/src/dev_workbench/api/app.py`
+- `sed -n '1,260p' apps/web/src/main.tsx`
+- `sed -n '1,260p' docs/architecture.md`
+- `sed -n '1,260p' docs/security_model.md`
+- `sed -n '1,260p' package.json`
+- `sed -n '1,220p' apps/web/package.json`
+- `sed -n '1,260p' pyproject.toml`
+- `find docs -maxdepth 2 -type f -print`
+- `test -f docs/tutorial.html; echo $?`
+- `rg -n "your-local-token|ado config check|planned|WORKBENCH_ADO_PAT_ENV_VAR|<YOUR|&lt;YOUR" docs/tutorial.html README.md`
+- `.venv/bin/pytest`
+- `npm run web:build`
+- `rg` check for remaining literal backticks or token-like examples in `docs/tutorial.html`
+- `python -m html.parser docs/tutorial.html`
 
 ## Test Results
 
-- Mock Azure DevOps client tests cover ticket listing, draft generation, posting after approval, and no-token setup guidance.
-- API tests cover no-token behavior and post confirmation requirements.
-- CLI tests cover no-token guidance, local draft generation, and `--yes` enforcement.
-- Web production build passed.
+- `.venv/bin/pytest` passed: 59 tests.
+- `npm run web:build` passed: TypeScript and Vite production build completed.
+- `python -m html.parser docs/tutorial.html` completed without parser errors.
+
+## Assumptions Made
+
+- Teammates will open `docs/tutorial.html` directly in a browser from the local checkout.
+- The current project root for app work is `/Users/marcelo/Documents/app-manager/local-dev-workbench`.
+- The user-requested config file locations are recommended conventions, but current implemented ADO config uses environment variables and SQLite metadata.
+- `workbench ado config check` was requested as a setup command but is not implemented, so the tutorial labels it as planned and recommends `workbench ado tickets list` for current setup guidance.
+- The default README ADO PAT variable is `AZURE_DEVOPS_EXT_PAT`; the tutorial shows how to set `WORKBENCH_ADO_PAT_ENV_VAR="AZURE_DEVOPS_PAT"` to use the requested placeholder name.
+
+## Commands That Could Not Be Verified
+
+- `workbench ado config check` could not be verified because it is not implemented.
+- Live Databricks CLI auth and `databricks bundle validate -t dev` were not run because they depend on local Databricks credentials and a target bundle repo.
+- Live Azure DevOps ticket listing/posting was not run because it depends on real organization, project, and PAT configuration.
 
 ## Open Issues
 
-- Only `auth_mode=pat_env` is implemented for REST calls.
-- There is not yet a CLI/API command to write ADO config into `ado_config`; environment variables are the practical setup path today.
-- Draft update generation is deterministic and local. It does not use an LLM.
-- The Tickets page does not edit or delete existing local notes yet.
+- There is still no implemented CLI/API command to persist ADO config metadata; environment variables are the practical setup path today.
+- Config-file loading for `.workbench.local.yml` and `~/.local-dev-workbench/config.yml` is documented as a recommended convention, not an implemented primary loader.
 
 ## Next Recommended Codex Prompt
 
-Continue building `local-dev-workbench`. Start by reading `handoff/current.md`, then add a small local ADO config editor for the CLI and web UI that persists only metadata in SQLite and never stores PAT values.
+Add a local ADO config checker/editor for the CLI and dashboard. It should persist only non-secret metadata, never store PAT values, and include tests that confirm missing-token setup guidance remains safe.
 
 ## Constraints
 
