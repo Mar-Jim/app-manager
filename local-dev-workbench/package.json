@@ -1,0 +1,14 @@
+{
+  "name": "local-dev-workbench",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Local-first developer workbench monorepo.",
+  "scripts": {
+    "web:dev": "npm --prefix apps/web run dev",
+    "web:build": "npm --prefix apps/web run build",
+    "test": "pytest"
+  },
+  "workspaces": [
+    "apps/web"
+  ]
+}
