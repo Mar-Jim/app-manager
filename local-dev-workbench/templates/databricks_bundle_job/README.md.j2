@@ -1,0 +1,17 @@
+# {{ name }}
+
+Starter Databricks Asset Bundle for a workflow job.
+
+## Targets
+
+This project intentionally includes only the `{{ target }}` target. Staging and production deployments are handled by the external deployer repo.
+
+Deployment strategy: `{{ deployment_strategy }}`
+
+## Local commands
+
+```bash
+databricks bundle validate -t {{ target }}
+pytest
+databricks bundle deploy -t {{ target }}
+```

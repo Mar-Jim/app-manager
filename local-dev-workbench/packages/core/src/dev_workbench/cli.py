@@ -6,11 +6,20 @@ import uvicorn
 from dev_workbench import __version__
 from dev_workbench.commands import CommandExecutionError, run_command, suggest_commands
 from dev_workbench.detect import detect_project
+from dev_workbench.projects import (
+    DEFAULT_DEPLOYMENT_STRATEGY,
+    DEFAULT_TARGET,
+    ProjectCreateError,
+    ProjectKind,
+    create_project,
+)
 from dev_workbench.storage import initialize_database
 
 app = typer.Typer(help="Local-first developer workbench.")
+create_app = typer.Typer(help="Create starter local projects.")
 handoff_app = typer.Typer(help="Create and manage handoff files.")
 commands_app = typer.Typer(help="Suggest and run generated commands after approval.")
+app.add_typer(create_app, name="create")
 app.add_typer(handoff_app, name="handoff")
 app.add_typer(commands_app, name="commands")
 
@@ -106,6 +115,106 @@ def commands_run(
         typer.echo(result.stderr)
 
 
+@create_app.command("bundle-job")
+def create_bundle_job(
+    name: str = typer.Argument(..., metavar="NAME"),
+    output_dir: Path | None = typer.Option(None, "--output-dir", help="Directory that will receive the project folder."),
+    force: bool = typer.Option(False, "--force", help="Overwrite existing generated files."),
+    include_github_action: bool = typer.Option(
+        False,
+        "--include-github-action/--no-include-github-action",
+        help="Include a GitHub Action workflow when supported.",
+    ),
+    deployment_strategy: str = typer.Option(DEFAULT_DEPLOYMENT_STRATEGY, "--deployment-strategy"),
+    target: str = typer.Option(DEFAULT_TARGET, "--target"),
+) -> None:
+    """Create a starter Databricks Asset Bundle workflow job project."""
+    _create_project_command(
+        kind="bundle-job",
+        name=name,
+        output_dir=output_dir,
+        force=force,
+        include_github_action=include_github_action,
+        deployment_strategy=deployment_strategy,
+        target=target,
+    )
+
+
+@create_app.command("bundle-pipeline")
+def create_bundle_pipeline(
+    name: str = typer.Argument(..., metavar="NAME"),
+    output_dir: Path | None = typer.Option(None, "--output-dir", help="Directory that will receive the project folder."),
+    force: bool = typer.Option(False, "--force", help="Overwrite existing generated files."),
+    include_github_action: bool = typer.Option(
+        False,
+        "--include-github-action/--no-include-github-action",
+        help="Include a GitHub Action workflow when supported.",
+    ),
+    deployment_strategy: str = typer.Option(DEFAULT_DEPLOYMENT_STRATEGY, "--deployment-strategy"),
+    target: str = typer.Option(DEFAULT_TARGET, "--target"),
+) -> None:
+    """Create a starter Databricks Asset Bundle DLT or Lakeflow pipeline project."""
+    _create_project_command(
+        kind="bundle-pipeline",
+        name=name,
+        output_dir=output_dir,
+        force=force,
+        include_github_action=include_github_action,
+        deployment_strategy=deployment_strategy,
+        target=target,
+    )
+
+
+@create_app.command("bundle-sql")
+def create_bundle_sql(
+    name: str = typer.Argument(..., metavar="NAME"),
+    output_dir: Path | None = typer.Option(None, "--output-dir", help="Directory that will receive the project folder."),
+    force: bool = typer.Option(False, "--force", help="Overwrite existing generated files."),
+    include_github_action: bool = typer.Option(
+        False,
+        "--include-github-action/--no-include-github-action",
+        help="Include a GitHub Action workflow when supported.",
+    ),
+    deployment_strategy: str = typer.Option(DEFAULT_DEPLOYMENT_STRATEGY, "--deployment-strategy"),
+    target: str = typer.Option(DEFAULT_TARGET, "--target"),
+) -> None:
+    """Create a starter Databricks Asset Bundle SQL and tables project."""
+    _create_project_command(
+        kind="bundle-sql",
+        name=name,
+        output_dir=output_dir,
+        force=force,
+        include_github_action=include_github_action,
+        deployment_strategy=deployment_strategy,
+        target=target,
+    )
+
+
+@create_app.command("bundle-dashboard")
+def create_bundle_dashboard(
+    name: str = typer.Argument(..., metavar="NAME"),
+    output_dir: Path | None = typer.Option(None, "--output-dir", help="Directory that will receive the project folder."),
+    force: bool = typer.Option(False, "--force", help="Overwrite existing generated files."),
+    include_github_action: bool = typer.Option(
+        False,
+        "--include-github-action/--no-include-github-action",
+        help="Include a GitHub Action workflow when supported.",
+    ),
+    deployment_strategy: str = typer.Option(DEFAULT_DEPLOYMENT_STRATEGY, "--deployment-strategy"),
+    target: str = typer.Option(DEFAULT_TARGET, "--target"),
+) -> None:
+    """Create a starter Databricks Asset Bundle dashboard skeleton."""
+    _create_project_command(
+        kind="bundle-dashboard",
+        name=name,
+        output_dir=output_dir,
+        force=force,
+        include_github_action=include_github_action,
+        deployment_strategy=deployment_strategy,
+        target=target,
+    )
+
+
 def _print_suggested_commands() -> None:
     commands = suggest_commands()
     if not commands:
@@ -118,3 +227,38 @@ def _print_suggested_commands() -> None:
             f"{command.id}: {command_text} "
             f"[risk={command.risk_level}, confirmation_required={command.requires_confirmation}]"
         )
+
+
+def _create_project_command(
+    *,
+    kind: ProjectKind,
+    name: str,
+    output_dir: Path | None,
+    force: bool,
+    include_github_action: bool,
+    deployment_strategy: str,
+    target: str,
+) -> None:
+    try:
+        result = create_project(
+            kind=kind,
+            name=name,
+            output_dir=output_dir,
+            force=force,
+            include_github_action=include_github_action,
+            deployment_strategy=deployment_strategy,
+            target=target,
+        )
+    except ProjectCreateError as exc:
+        typer.echo(f"error: {exc}", err=True)
+        raise typer.Exit(code=2) from exc
+
+    if result["conflicts"] and not force:
+        typer.echo("error: files already exist; rerun with --force to overwrite.", err=True)
+        for conflict in result["conflicts"]:
+            typer.echo(f"conflict: {conflict}", err=True)
+        raise typer.Exit(code=2)
+
+    typer.echo(f"created: {result['root_path']}")
+    for file_path in result["files"]:
+        typer.echo(f"file: {file_path}")

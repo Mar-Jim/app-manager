@@ -24,6 +24,17 @@ button {
   text-align: left;
 }
 
+input,
+select {
+  border: 1px solid #c7d0da;
+  border-radius: 6px;
+  color: #17202a;
+  font: inherit;
+  min-height: 42px;
+  padding: 0 12px;
+  width: 100%;
+}
+
 button:hover {
   border-color: #4c7a9f;
 }
@@ -98,11 +109,98 @@ h2 {
   grid-template-columns: minmax(0, 1.2fr) minmax(280px, 0.8fr);
 }
 
+.tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.tabs button {
+  min-height: 38px;
+  text-align: center;
+}
+
+.tabs button.active {
+  background: #1f4f7a;
+  border-color: #1f4f7a;
+  color: #ffffff;
+}
+
 .panel {
   background: #ffffff;
   border: 1px solid #dbe1e7;
   border-radius: 8px;
   padding: 20px;
+}
+
+.create-layout {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: minmax(320px, 0.8fr) minmax(0, 1.2fr);
+}
+
+.create-form {
+  display: grid;
+  gap: 14px;
+}
+
+.create-form label {
+  color: #627181;
+  display: grid;
+  font-size: 13px;
+  font-weight: 700;
+  gap: 6px;
+  text-transform: uppercase;
+}
+
+.create-form .checkbox {
+  align-items: center;
+  color: #17202a;
+  display: flex;
+  font-size: 14px;
+  font-weight: 500;
+  gap: 10px;
+  text-transform: none;
+}
+
+.checkbox input {
+  min-height: 18px;
+  width: 18px;
+}
+
+.form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.form-actions button:first-child,
+.form-actions button:nth-child(2) {
+  background: #1f4f7a;
+  border-color: #1f4f7a;
+  color: #ffffff;
+  text-align: center;
+}
+
+.preview h3 {
+  font-size: 14px;
+  margin: 18px 0 8px;
+}
+
+.preview ul {
+  background: #f6f7f9;
+  border: 1px solid #e5e9ee;
+  border-radius: 6px;
+  list-style: none;
+  margin: 0;
+  padding: 10px 12px;
+}
+
+.preview li {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+  padding: 3px 0;
 }
 
 .commands {
@@ -287,6 +385,7 @@ code {
 @media (max-width: 760px) {
   .topbar,
   .grid,
+  .create-layout,
   .command {
     grid-template-columns: 1fr;
   }

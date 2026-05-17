@@ -44,11 +44,31 @@ type CommandRunResult = {
   ended_at: string;
 };
 
+type ProjectKind = "bundle-job" | "bundle-pipeline" | "bundle-sql" | "bundle-dashboard";
+
+type ProjectCreateResult = {
+  kind: ProjectKind;
+  name: string;
+  root_path: string;
+  dry_run: boolean;
+  created: boolean;
+  files: string[];
+  conflicts: string[];
+};
+
+const projectTypes: { value: ProjectKind; label: string }[] = [
+  { value: "bundle-job", label: "Workflow job" },
+  { value: "bundle-pipeline", label: "DLT or Lakeflow pipeline" },
+  { value: "bundle-sql", label: "SQL and tables" },
+  { value: "bundle-dashboard", label: "Dashboard skeleton" },
+];
+
 function commandText(command: GeneratedCommand) {
   return [command.command, ...command.args].join(" ");
 }
 
 function App() {
+  const [page, setPage] = useState<"overview" | "create">("overview");
   const [health, setHealth] = useState<Health | null>(null);
   const [project, setProject] = useState<ProjectDetection | null>(null);
   const [commands, setCommands] = useState<GeneratedCommand[]>([]);
@@ -56,6 +76,15 @@ function App() {
   const [runResult, setRunResult] = useState<CommandRunResult | null>(null);
   const [runError, setRunError] = useState<string | null>(null);
   const [isRunning, setIsRunning] = useState(false);
+  const [projectKind, setProjectKind] = useState<ProjectKind>("bundle-job");
+  const [projectName, setProjectName] = useState("");
+  const [outputDir, setOutputDir] = useState("");
+  const [deploymentStrategy, setDeploymentStrategy] = useState("external-deployer");
+  const [includeGithubAction, setIncludeGithubAction] = useState(false);
+  const [forceCreate, setForceCreate] = useState(false);
+  const [createPreview, setCreatePreview] = useState<ProjectCreateResult | null>(null);
+  const [createError, setCreateError] = useState<string | null>(null);
+  const [isCreating, setIsCreating] = useState(false);
 
   useEffect(() => {
     void fetch("/health").then((res) => res.json()).then(setHealth).catch(() => setHealth(null));
@@ -92,6 +121,36 @@ function App() {
     }
   }
 
+  async function submitProjectCreate(dryRun: boolean) {
+    setIsCreating(true);
+    setCreateError(null);
+    try {
+      const response = await fetch("/api/projects/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          kind: projectKind,
+          name: projectName,
+          output_dir: outputDir || null,
+          force: forceCreate,
+          include_github_action: includeGithubAction,
+          deployment_strategy: deploymentStrategy,
+          target: "dev",
+          dry_run: dryRun,
+        }),
+      });
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(payload.detail ?? "Project creation failed.");
+      }
+      setCreatePreview(payload);
+    } catch (error) {
+      setCreateError(error instanceof Error ? error.message : "Project creation failed.");
+    } finally {
+      setIsCreating(false);
+    }
+  }
+
   return (
     <main className="shell">
       <header className="topbar">
@@ -104,7 +163,16 @@ function App() {
         </div>
       </header>
 
-      <section className="grid">
+      <nav className="tabs" aria-label="Workbench pages">
+        <button className={page === "overview" ? "active" : ""} type="button" onClick={() => setPage("overview")}>
+          Overview
+        </button>
+        <button className={page === "create" ? "active" : ""} type="button" onClick={() => setPage("create")}>
+          Create Project
+        </button>
+      </nav>
+
+      {page === "overview" ? <section className="grid">
         <article className="panel project">
           <h2>Current Project</h2>
           <dl>
@@ -161,7 +229,109 @@ function App() {
             </button>
           )) : <p className="empty">Suggestions appear here for Databricks Asset Bundle projects.</p>}
         </article>
-      </section>
+      </section> : null}
+
+      {page === "create" ? (
+        <section className="create-layout">
+          <article className="panel">
+            <h2>Create Project</h2>
+            <form className="create-form" onSubmit={(event) => {
+              event.preventDefault();
+              void submitProjectCreate(true);
+            }}>
+              <label>
+                Project Type
+                <select value={projectKind} onChange={(event) => {
+                  setProjectKind(event.target.value as ProjectKind);
+                  setCreatePreview(null);
+                }}>
+                  {projectTypes.map((type) => (
+                    <option key={type.value} value={type.value}>{type.label}</option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                Name
+                <input value={projectName} onChange={(event) => {
+                  setProjectName(event.target.value);
+                  setCreatePreview(null);
+                }} placeholder="my-bundle-project" />
+              </label>
+              <label>
+                Output Path
+                <input value={outputDir} onChange={(event) => {
+                  setOutputDir(event.target.value);
+                  setCreatePreview(null);
+                }} placeholder="Current backend working directory" />
+              </label>
+              <label>
+                Deployment Strategy
+                <select value={deploymentStrategy} onChange={(event) => setDeploymentStrategy(event.target.value)}>
+                  <option value="external-deployer">External deployer</option>
+                </select>
+              </label>
+              <label className="checkbox">
+                <input
+                  type="checkbox"
+                  checked={includeGithubAction}
+                  onChange={(event) => {
+                    setIncludeGithubAction(event.target.checked);
+                    setCreatePreview(null);
+                  }}
+                />
+                Include GitHub Action
+              </label>
+              <label className="checkbox">
+                <input type="checkbox" checked={forceCreate} onChange={(event) => setForceCreate(event.target.checked)} />
+                Overwrite existing files
+              </label>
+              <div className="form-actions">
+                <button type="submit" disabled={isCreating || !projectName}>
+                  {isCreating ? "Working" : "Preview Files"}
+                </button>
+                <button
+                  type="button"
+                  disabled={isCreating || !createPreview || (createPreview.conflicts.length > 0 && !forceCreate)}
+                  onClick={() => void submitProjectCreate(false)}
+                >
+                  Create
+                </button>
+              </div>
+            </form>
+            {createError ? <pre className="output error">{createError}</pre> : null}
+          </article>
+
+          <article className="panel">
+            <h2>Preview</h2>
+            {createPreview ? (
+              <div className="preview">
+                <dl>
+                  <div>
+                    <dt>Root</dt>
+                    <dd>{createPreview.root_path}</dd>
+                  </div>
+                  <div>
+                    <dt>Status</dt>
+                    <dd>{createPreview.created ? "Created" : createPreview.conflicts.length ? "Conflicts found" : "Ready"}</dd>
+                  </div>
+                </dl>
+                {createPreview.conflicts.length ? (
+                  <>
+                    <h3>Conflicts</h3>
+                    <ul>
+                      {createPreview.conflicts.map((file) => <li key={file}>{file}</li>)}
+                    </ul>
+                  </>
+                ) : null}
+                <h3>Files</h3>
+                <ul>
+                  {createPreview.files.map((file) => <li key={file}>{file}</li>)}
+                </ul>
+              </div>
+            ) : <p className="empty">Preview the file plan before creating a bundle project.</p>}
+          </article>
+        </section>
+      ) : null}
 
       {selectedCommand ? (
         <div className="modal-backdrop" role="presentation">

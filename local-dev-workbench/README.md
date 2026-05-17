@@ -29,10 +29,36 @@ workbench commands list
 workbench commands suggest
 workbench commands run validate-bundle
 workbench commands run deploy-dev --yes
+workbench create bundle-job my-job
+workbench create bundle-pipeline my-pipeline
+workbench create bundle-sql my-sql
+workbench create bundle-dashboard my-dashboard
 workbench handoff create
 ```
 
 `workbench detect` reads local files only. It detects Databricks Asset Bundles, Databricks Apps, Python projects, Node projects, VS Code extensions, and unknown folders. For Databricks Asset Bundles, it parses `databricks.yml` or `databricks.yaml`, reports target names, and adds a deployment strategy hint for dev-only and dev/stg/prd target layouts.
+
+## Create Databricks Asset Bundle Projects
+
+The `workbench create` commands generate compact starter Databricks Asset Bundle repos using Jinja templates under `templates/databricks_bundle_*`.
+
+Available project types:
+
+- `workbench create bundle-job NAME`
+- `workbench create bundle-pipeline NAME`
+- `workbench create bundle-sql NAME`
+- `workbench create bundle-dashboard NAME`
+
+Options:
+
+- `--output-dir PATH`
+- `--force`
+- `--include-github-action/--no-include-github-action` defaults to disabled
+- `--deployment-strategy external-deployer`
+- `--target dev`
+
+Generated bundles intentionally include only a `dev` target. Staging and production deployments are expected to be handled by the external deployer repo.
+When `--include-github-action` is set, the generator adds a dev-target bundle validation workflow only; it does not deploy staging or production.
 
 ## Run Backend
 
@@ -49,6 +75,9 @@ Available endpoints:
 - `GET /api/commands`
 - `GET /api/commands/suggest`
 - `POST /api/commands/run`
+- `POST /api/projects/create`
+
+`POST /api/projects/create` defaults to `dry_run: true` so the dashboard can preview planned files before writing them. Existing files are not overwritten unless `force` is set.
 
 ## Run Web Dashboard
 
@@ -77,7 +106,7 @@ apps/web/                  React + Vite local dashboard
 apps/vscode/               Placeholder for future VS Code extension
 packages/core/src/         Python core package, CLI, and FastAPI app
 packages/core/tests/       pytest tests
-templates/                 Future local templates
+templates/                 Jinja templates for generated local projects
 docs/                      Architecture and process docs
 handoff/current.md         Current state for future Codex sessions
 ```

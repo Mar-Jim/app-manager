@@ -51,3 +51,41 @@ def test_commands_run_requires_confirmation_for_medium(tmp_path, monkeypatch):
 
     assert response.status_code == 400
     assert "require explicit --yes" in response.json()["detail"]
+
+
+def test_projects_create_dry_run_returns_preview(tmp_path):
+    client = TestClient(create_app())
+
+    response = client.post(
+        "/api/projects/create",
+        json={
+            "kind": "bundle-dashboard",
+            "name": "demo-dashboard",
+            "output_dir": str(tmp_path),
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["dry_run"] is True
+    assert payload["created"] is False
+    assert "databricks.yml" in payload["files"]
+    assert not (tmp_path / "demo-dashboard/databricks.yml").exists()
+
+
+def test_projects_create_writes_files_when_not_dry_run(tmp_path):
+    client = TestClient(create_app())
+
+    response = client.post(
+        "/api/projects/create",
+        json={
+            "kind": "bundle-job",
+            "name": "demo-job",
+            "output_dir": str(tmp_path),
+            "dry_run": False,
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["created"] is True
+    assert (tmp_path / "demo-job/databricks.yml").exists()

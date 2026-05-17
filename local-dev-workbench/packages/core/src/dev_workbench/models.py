@@ -3,6 +3,7 @@ from typing import Literal
 from pydantic import BaseModel
 
 RiskLevel = Literal["low", "medium", "high", "destructive"]
+ProjectCreateKind = Literal["bundle-job", "bundle-pipeline", "bundle-sql", "bundle-dashboard"]
 
 
 class HealthStatus(BaseModel):
@@ -54,3 +55,24 @@ class CommandRunResult(BaseModel):
     exit_code: int | None
     started_at: str
     ended_at: str
+
+
+class ProjectCreateRequest(BaseModel):
+    kind: ProjectCreateKind
+    name: str
+    output_dir: str | None = None
+    force: bool = False
+    include_github_action: bool = False
+    deployment_strategy: str = "external-deployer"
+    target: str = "dev"
+    dry_run: bool = True
+
+
+class ProjectCreateResult(BaseModel):
+    kind: ProjectCreateKind
+    name: str
+    root_path: str
+    dry_run: bool
+    created: bool
+    files: list[str]
+    conflicts: list[str]

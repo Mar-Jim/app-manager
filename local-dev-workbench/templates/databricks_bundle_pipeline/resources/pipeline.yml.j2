@@ -1,0 +1,8 @@
+resources:
+  pipelines:
+    {{ bundle_name }}_pipeline:
+      name: {{ name }} pipeline
+      development: true
+      libraries:
+        - file:
+            path: ../src/pipelines/pipeline.py

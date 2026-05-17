@@ -1,0 +1,8 @@
+resources:
+  jobs:
+    {{ bundle_name }}_job:
+      name: {{ name }} job
+      tasks:
+        - task_key: main
+          spark_python_task:
+            python_file: ../src/jobs/main.py

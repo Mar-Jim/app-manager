@@ -1,0 +1,12 @@
+bundle:
+  name: {{ bundle_name }}
+
+targets:
+  {{ target }}:
+    mode: development
+    default: true
+    workspace:
+      root_path: /Workspace/Users/${workspace.current_user.userName}/.bundle/${bundle.name}/{{ target }}
+
+include:
+  - resources/*.yml

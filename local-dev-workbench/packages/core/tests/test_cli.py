@@ -31,3 +31,22 @@ def test_commands_run_medium_without_yes_fails(tmp_path, monkeypatch):
 
     assert result.exit_code == 2
     assert "require explicit --yes" in result.output
+
+
+def test_create_bundle_job_command_creates_project(tmp_path):
+    result = CliRunner().invoke(app, ["create", "bundle-job", "demo-job", "--output-dir", str(tmp_path)])
+
+    assert result.exit_code == 0
+    assert "created:" in result.output
+    assert (tmp_path / "demo-job/databricks.yml").exists()
+    assert (tmp_path / "demo-job/resources/job.yml").exists()
+
+
+def test_create_bundle_command_blocks_conflicts(tmp_path):
+    runner = CliRunner()
+    first = runner.invoke(app, ["create", "bundle-sql", "demo-sql", "--output-dir", str(tmp_path)])
+    second = runner.invoke(app, ["create", "bundle-sql", "demo-sql", "--output-dir", str(tmp_path)])
+
+    assert first.exit_code == 0
+    assert second.exit_code == 2
+    assert "files already exist" in second.output
