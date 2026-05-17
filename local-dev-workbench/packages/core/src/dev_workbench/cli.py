@@ -26,10 +26,25 @@ def doctor() -> None:
 
 
 @app.command()
-def detect() -> None:
-    """Detect known local project markers in the current directory."""
+def detect(json_output: bool = typer.Option(False, "--json", help="Output detection result as JSON.")) -> None:
+    """Detect the local project type in the current directory."""
     result = detect_project()
-    typer.echo(result.model_dump_json(indent=2))
+    if json_output:
+        typer.echo(result.model_dump_json(indent=2))
+        return
+
+    typer.echo("Project detection")
+    typer.echo(f"type: {result.project.project_type}")
+    typer.echo(f"root: {result.project.root_path}")
+    detected_files = ", ".join(result.project.detected_files) if result.project.detected_files else "none"
+    typer.echo(f"detected files: {detected_files}")
+    if result.databricks_bundle:
+        targets = ", ".join(result.databricks_bundle.targets) if result.databricks_bundle.targets else "none"
+        typer.echo(f"bundle file: {result.databricks_bundle.bundle_file}")
+        typer.echo(f"databricks targets: {targets}")
+        typer.echo(f"only dev target: {result.databricks_bundle.only_dev_target}")
+        typer.echo(f"deployment strategy: {result.databricks_bundle.deployment_strategy}")
+    typer.echo(f"message: {result.message}")
 
 
 @app.command()

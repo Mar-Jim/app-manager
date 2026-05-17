@@ -7,10 +7,22 @@ class HealthStatus(BaseModel):
     version: str
 
 
-class ProjectDetection(BaseModel):
-    root: str
+class ProjectInfo(BaseModel):
+    root_path: str
     project_type: str
-    markers: list[str]
+    detected_files: list[str]
+
+
+class DatabricksBundleInfo(BaseModel):
+    bundle_file: str
+    targets: list[str]
+    only_dev_target: bool
+    deployment_strategy: str
+
+
+class DetectionResult(BaseModel):
+    project: ProjectInfo
+    databricks_bundle: DatabricksBundleInfo | None = None
     message: str
 
 

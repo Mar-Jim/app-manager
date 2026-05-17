@@ -9,9 +9,17 @@ type Health = {
 };
 
 type ProjectDetection = {
-  root: string;
-  project_type: string;
-  markers: string[];
+  project: {
+    root_path: string;
+    project_type: string;
+    detected_files: string[];
+  };
+  databricks_bundle: {
+    bundle_file: string;
+    targets: string[];
+    only_dev_target: boolean;
+    deployment_strategy: string;
+  } | null;
   message: string;
 };
 
@@ -54,16 +62,28 @@ function App() {
           <dl>
             <div>
               <dt>Type</dt>
-              <dd>{project?.project_type ?? "Detecting"}</dd>
+              <dd>{project?.project.project_type ?? "Detecting"}</dd>
             </div>
             <div>
               <dt>Root</dt>
-              <dd>{project?.root ?? "Local workspace"}</dd>
+              <dd>{project?.project.root_path ?? "Local workspace"}</dd>
             </div>
             <div>
-              <dt>Markers</dt>
-              <dd>{project?.markers.length ? project.markers.join(", ") : "No markers yet"}</dd>
+              <dt>Detected Files</dt>
+              <dd>{project?.project.detected_files.length ? project.project.detected_files.join(", ") : "None"}</dd>
             </div>
+            {project?.databricks_bundle ? (
+              <>
+                <div>
+                  <dt>Databricks Targets</dt>
+                  <dd>{project.databricks_bundle.targets.length ? project.databricks_bundle.targets.join(", ") : "None"}</dd>
+                </div>
+                <div>
+                  <dt>Deployment Strategy</dt>
+                  <dd>{project.databricks_bundle.deployment_strategy}</dd>
+                </div>
+              </>
+            ) : null}
           </dl>
         </article>
 

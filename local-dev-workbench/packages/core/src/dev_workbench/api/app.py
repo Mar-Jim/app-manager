@@ -3,7 +3,7 @@ from fastapi import FastAPI
 from dev_workbench import __version__
 from dev_workbench.commands import list_generated_commands
 from dev_workbench.detect import detect_project
-from dev_workbench.models import GeneratedCommand, HealthStatus, ProjectDetection
+from dev_workbench.models import DetectionResult, GeneratedCommand, HealthStatus
 
 
 def create_app() -> FastAPI:
@@ -13,8 +13,8 @@ def create_app() -> FastAPI:
     def health() -> HealthStatus:
         return HealthStatus(status="ok", app="local-dev-workbench", version=__version__)
 
-    @api.get("/api/project/detect", response_model=ProjectDetection)
-    def project_detect() -> ProjectDetection:
+    @api.get("/api/project/detect", response_model=DetectionResult)
+    def project_detect() -> DetectionResult:
         return detect_project()
 
     @api.get("/api/commands", response_model=list[GeneratedCommand])

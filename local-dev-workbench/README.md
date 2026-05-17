@@ -2,7 +2,7 @@
 
 Local-first developer workbench for creating, editing, validating, testing, and managing Databricks Asset Bundles, Databricks Apps, local assistant apps, Codex prompts, handoff files, local todos, and future Azure DevOps ticket updates.
 
-The initial version is intentionally conservative: it can detect project markers, expose local API data, render a local dashboard, and generate command suggestions. It does not execute risky commands automatically.
+The initial version is intentionally conservative: it can detect local project types, expose local API data, render a local dashboard, and generate command suggestions. It does not execute risky commands automatically.
 
 ## Requirements
 
@@ -24,9 +24,12 @@ python -m pip install -e ".[dev]"
 ```bash
 workbench doctor
 workbench detect
+workbench detect --json
 workbench commands list
 workbench handoff create
 ```
+
+`workbench detect` reads local files only. It detects Databricks Asset Bundles, Databricks Apps, Python projects, Node projects, VS Code extensions, and unknown folders. For Databricks Asset Bundles, it parses `databricks.yml` or `databricks.yaml`, reports target names, and adds a deployment strategy hint for dev-only and dev/stg/prd target layouts.
 
 ## Run Backend
 
