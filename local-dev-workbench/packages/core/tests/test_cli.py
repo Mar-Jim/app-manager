@@ -50,3 +50,27 @@ def test_create_bundle_command_blocks_conflicts(tmp_path):
     assert first.exit_code == 0
     assert second.exit_code == 2
     assert "files already exist" in second.output
+
+
+def test_prompt_create_outputs_codex_prompt(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "databricks.yml").write_text("targets:\n  dev: {}\n", encoding="utf-8")
+
+    result = CliRunner().invoke(app, ["prompt", "create", "--task-type", "add-workflow", "--task", "Add prompts."])
+
+    assert result.exit_code == 0
+    assert "## Goal" in result.output
+    assert "Specific request: Add prompts." in result.output
+    assert "Do not add stg/prd targets unless explicitly requested." in result.output
+
+
+def test_handoff_create_and_show(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+
+    created = CliRunner().invoke(app, ["handoff", "create", "--task", "Keep context lean."])
+    shown = CliRunner().invoke(app, ["handoff", "show"])
+
+    assert created.exit_code == 0
+    assert shown.exit_code == 0
+    assert "## Current State" in shown.output
+    assert "Keep context lean." in shown.output

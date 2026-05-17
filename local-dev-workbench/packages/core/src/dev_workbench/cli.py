@@ -6,6 +6,9 @@ import uvicorn
 from dev_workbench import __version__
 from dev_workbench.commands import CommandExecutionError, run_command, suggest_commands
 from dev_workbench.detect import detect_project
+from dev_workbench.models import PromptTaskType
+from dev_workbench.prompts import create_handoff as create_handoff_file
+from dev_workbench.prompts import generate_prompt, save_prompt, show_handoff
 from dev_workbench.projects import (
     DEFAULT_DEPLOYMENT_STRATEGY,
     DEFAULT_TARGET,
@@ -19,9 +22,11 @@ app = typer.Typer(help="Local-first developer workbench.")
 create_app = typer.Typer(help="Create starter local projects.")
 handoff_app = typer.Typer(help="Create and manage handoff files.")
 commands_app = typer.Typer(help="Suggest and run generated commands after approval.")
+prompt_app = typer.Typer(help="Generate Codex prompts from local project context.")
 app.add_typer(create_app, name="create")
 app.add_typer(handoff_app, name="handoff")
 app.add_typer(commands_app, name="commands")
+app.add_typer(prompt_app, name="prompt")
 
 
 @app.command()
@@ -66,19 +71,43 @@ def serve(
 
 
 @handoff_app.command("create")
-def handoff_create(path: Path = typer.Option(Path("handoff/current.md"), help="Handoff file to create.")) -> None:
-    """Create a local handoff file if it does not already exist."""
-    path.parent.mkdir(parents=True, exist_ok=True)
-    if not path.exists():
-        path.write_text(
-            "# Current Handoff\n\n"
-            "## State\n"
-            "- Initial handoff created by `workbench handoff create`.\n\n"
-            "## Next Recommended Prompt\n"
-            "Continue building local-dev-workbench from the current handoff.\n",
-            encoding="utf-8",
-        )
-    typer.echo(f"handoff: {path}")
+def handoff_create(
+    path: Path = typer.Option(Path("handoff/current.md"), help="Handoff file to create or update."),
+    task_type: PromptTaskType = typer.Option("add-workflow", "--task-type", help="Prompt task type to seed the handoff."),
+    task: str = typer.Option("", "--task", help="Task description for the next recommended prompt."),
+) -> None:
+    """Create or update a local handoff file."""
+    output_path, _content = create_handoff_file(path=path, task_type=task_type, task_description=task)
+    typer.echo(f"handoff: {output_path}")
+
+
+@handoff_app.command("show")
+def handoff_show(path: Path = typer.Option(Path("handoff/current.md"), help="Handoff file to display.")) -> None:
+    """Show the current local handoff file."""
+    try:
+        _path, content = show_handoff(path=path)
+    except FileNotFoundError as exc:
+        typer.echo(f"error: handoff file not found: {path}", err=True)
+        raise typer.Exit(code=2) from exc
+    typer.echo(content)
+
+
+@prompt_app.command("create")
+def prompt_create(
+    task_type: PromptTaskType = typer.Option("add-workflow", "--task-type", help="Prompt task type."),
+    task: str = typer.Option("", "--task", help="Task description to include in the generated prompt."),
+    save: bool = typer.Option(False, "--save", help="Save the generated prompt under prompts/."),
+    file_name: str | None = typer.Option(None, "--file-name", help="Optional prompt file name when saving."),
+) -> None:
+    """Generate a medium-sized Codex prompt from local project context."""
+    if save:
+        output_path, prompt = save_prompt(task_type=task_type, task_description=task, file_name=file_name)
+        typer.echo(prompt)
+        typer.echo(f"saved: {output_path}")
+        return
+
+    result = generate_prompt(task_type=task_type, task_description=task)
+    typer.echo(result.prompt)
 
 
 @commands_app.command("list")

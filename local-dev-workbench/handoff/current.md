@@ -1,108 +1,80 @@
 # Current Handoff
 
-## State
+## Goal
 
-Created the initial `local-dev-workbench` monorepo and added local command generation with approval-gated execution:
+Add Codex prompt generation and a handoff workflow so future sessions can start with focused context and avoid context bloat.
 
-- Python core package under `packages/core/src/dev_workbench`
-- Typer CLI with `doctor`, `detect`, `serve`, `handoff create`, `commands list`, `commands suggest`, and `commands run`
-- FastAPI backend with `/health`, `/api/project/detect`, `/api/commands`, `/api/commands/suggest`, and `/api/commands/run`
-- SQLite initialization through the Python standard library
-- React + Vite dashboard under `apps/web`
-- Placeholder future VS Code extension folder under `apps/vscode`
-- pytest coverage for CLI, API, detection, command suggestion, risk classification, subprocess invocation, confirmation gating, and destructive blocking
-- Architecture, security model, and handoff protocol docs
-- Structured detection models: `ProjectInfo`, `DatabricksBundleInfo`, and `DetectionResult`
-- Structured command models: `GeneratedCommand`, `CommandRunRequest`, and `CommandRunResult`
-- Local filesystem project detection for Databricks Asset Bundles, Databricks Apps, Python projects, Node projects, VS Code extensions, and unknown folders
-- Safe Databricks bundle target parsing from `databricks.yml` or `databricks.yaml`
-- Deployment strategy hints for dev-only bundles and dev/stg/prd bundles
-- Jinja-backed Databricks Asset Bundle starter generators for workflow jobs, DLT or Lakeflow pipelines, SQL/table projects, and dashboard skeletons
-- `workbench create bundle-job NAME`
-- `workbench create bundle-pipeline NAME`
-- `workbench create bundle-sql NAME`
-- `workbench create bundle-dashboard NAME`
-- `POST /api/projects/create` with dry-run preview support
-- React Create Project page with project type, name, output path, deployment strategy, overwrite option, preview, and create actions
+## Current State
 
-## What Works
+- `local-dev-workbench` is a Typer/FastAPI/React monorepo for local-first Databricks and assistant workflows.
+- CLI now includes `workbench prompt create`, `workbench prompt create --task-type add-workflow`, `fix-bundle-error`, `add-databricks-app`, and `write-tests`.
+- CLI now includes `workbench handoff create` and `workbench handoff show`.
+- FastAPI exposes prompt creation, prompt saving, handoff creation, and current handoff read endpoints.
+- React now has a Codex Prompts page with task type selection, task description input, generated prompt preview, Copy, Save to `prompts/`, and Create handoff actions.
+- Prompt generation includes project detection, local notes when present, selected command output when available, validation commands, and fixed Databricks external-deployer constraints.
 
-- `workbench doctor` initializes `.workbench/workbench.sqlite3` and reports local status.
-- `workbench detect` prints readable project detection text by default.
-- `workbench detect --json` prints the same structured detection result as JSON.
-- `workbench commands suggest` and `workbench commands list` display generated commands without executing them.
-- `workbench commands run COMMAND_ID` runs only known generated command IDs.
-- Medium, high, and destructive CLI commands require `--yes`.
-- Destructive commands are classified and blocked with a clear error.
-- `workbench serve` starts the local FastAPI app on `127.0.0.1:8787`.
-- `GET /api/project/detect` returns `DetectionResult`.
-- `GET /api/commands/suggest` returns Databricks Asset Bundle command suggestions.
-- `POST /api/commands/run` executes only generated command IDs and returns stdout/stderr/exit metadata.
-- The Vite dashboard shows project detection, generated command action cards, a command review modal, copy/run/cancel controls, and stdout/stderr after runs.
-- The CLI can generate starter Databricks Asset Bundle repos from templates under `templates/databricks_bundle_*`.
-- Generated bundle projects include only a `dev` target by default. Staging and production are intentionally left to the external deployer repo.
-- Project generation refuses to overwrite existing files unless `--force` or API `force: true` is used.
-- The dashboard Create Project page previews files before writing them through the backend endpoint.
-- `--include-github-action` can optionally add a dev-target bundle validation workflow; it is disabled by default.
+## Architecture Decisions
 
-## Databricks Asset Bundle Suggestions
-
-- `validate-bundle`: `databricks bundle validate -t dev`
-- `run-tests`: `pytest`
-- `deploy-dev`: `databricks bundle deploy -t dev`
-- `bundle-summary`: `databricks bundle validate -t dev --output json`
-
-## Verification
-
-Run from the repository root:
-
-```bash
-.venv/bin/pytest
-npm run web:build
-.venv/bin/workbench detect --json
-.venv/bin/workbench commands suggest
-.venv/bin/workbench create bundle-job demo-job --output-dir /tmp
-```
-
-For a Databricks Asset Bundle test fixture, run inside a folder with `databricks.yml`:
-
-```bash
-workbench commands suggest
-workbench commands run validate-bundle
-workbench commands run deploy-dev --yes
-```
+- Prompt and handoff rendering live in `dev_workbench.prompts` so CLI, API, and UI share deterministic behavior.
+- Prompt generation uses local project detection and small optional context snippets; it does not scan large source files unless a future feature explicitly selects them.
+- Databricks bundle prompts always state that this repo usually defines only `dev`; `stg` and `prd` are handled by the external deployer repo unless explicitly requested.
+- Generated handoffs use the new required section format and can be manually refined at session end.
 
 ## Files Changed
 
 - `packages/core/src/dev_workbench/models.py`
-- `packages/core/src/dev_workbench/commands.py`
-- `packages/core/src/dev_workbench/projects.py`
+- `packages/core/src/dev_workbench/prompts.py`
 - `packages/core/src/dev_workbench/cli.py`
 - `packages/core/src/dev_workbench/api/app.py`
-- `templates/databricks_bundle_job/*`
-- `templates/databricks_bundle_pipeline/*`
-- `templates/databricks_bundle_sql/*`
-- `templates/databricks_bundle_dashboard/*`
-- `packages/core/tests/test_commands.py`
-- `packages/core/tests/test_projects.py`
+- `packages/core/tests/test_prompts.py`
 - `packages/core/tests/test_cli.py`
 - `packages/core/tests/test_api.py`
 - `apps/web/src/main.tsx`
 - `apps/web/src/styles.css`
-- `README.md`
-- `docs/security_model.md`
+- `docs/prompt_playbook.md`
+- `docs/handoff_protocol.md`
 - `handoff/current.md`
 
-## Known Gaps
+## Commands Run
 
-- `npm install` previously reported 2 moderate dependency advisory findings.
-- Bundle Summary uses the Databricks CLI JSON output flag; a future slice should detect unsupported CLIs and fall back to normal validate.
-- VS Code extension is only a placeholder folder.
-- Databricks bundle detection only reads local configuration and target names; it does not validate bundles or call Databricks during detection.
-- Databricks App detection is local marker detection only.
-- Command run history is not persisted to SQLite yet.
-- Workflow/job generation currently creates a Python `src/jobs/main.py` starter; notebook-style job starters are not implemented yet.
+- `.venv/bin/pytest packages/core/tests/test_prompts.py packages/core/tests/test_cli.py packages/core/tests/test_api.py` -> passed, 19 tests.
+- `npm run web:build` -> passed, TypeScript and Vite production build completed.
+- `.venv/bin/pytest` -> passed, 41 tests.
+- `.venv/bin/workbench prompt create --task-type add-workflow --task 'Smoke check prompt generation'` -> passed and printed the expected prompt sections.
+- `curl -s http://127.0.0.1:8787/health` -> passed, API returned status `ok`.
+- `npm run dev` from `apps/web` -> started Vite on `http://127.0.0.1:5177/`.
+- Browser verification at `http://127.0.0.1:5177/` -> opened Codex Prompts page and generated a prompt successfully.
+- `kill 74504 74918` -> stopped two incorrect Vite attempts that had been launched with extra positional arguments.
 
-## Next Recommended Prompt
+## Test Results
 
-Continue building `local-dev-workbench`. Start by reading `handoff/current.md`, then implement persistent command run history in SQLite and expose it through the API/dashboard.
+- Focused Python prompt/CLI/API tests passed.
+- Full Python test suite passed.
+- Web production build passed.
+- CLI prompt generation smoke check passed.
+- Browser check of the new Codex Prompts page passed on Vite port `5177`.
+
+## Open Issues
+
+- Prompt saving uses timestamped file names by default, so exact filenames are intentionally not deterministic.
+- Recent command output is only included when supplied by the UI or present under `.workbench/command_outputs/`; command run history is still not persisted with stdout/stderr.
+- Source-file selection for richer prompts is not implemented yet.
+
+## Next Recommended Codex Prompt
+
+Continue building `local-dev-workbench`. Start by reading `handoff/current.md`, then implement persistent command run history in SQLite, including stdout/stderr summaries, and expose selectable recent command outputs in the Codex Prompts page.
+
+## Constraints
+
+- This repo usually defines only dev target.
+- stg/prd are handled by external deployer repo.
+- Do not add stg/prd targets unless explicitly requested.
+- Prefer local-first commands.
+- Ask before execution.
+- Do not read large source files for prompt generation unless the user selects them.
+
+## Do Not Change
+
+- Do not add Databricks `stg` or `prd` bundle targets unless explicitly requested.
+- Do not include secrets, tokens, private hostnames, customer data, or private source snippets in prompts or handoff files.
+- Do not execute deploy or cloud-mutating commands without explicit approval.

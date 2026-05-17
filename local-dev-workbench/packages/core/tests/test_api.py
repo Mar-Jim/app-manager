@@ -89,3 +89,36 @@ def test_projects_create_writes_files_when_not_dry_run(tmp_path):
     assert response.status_code == 200
     assert response.json()["created"] is True
     assert (tmp_path / "demo-job/databricks.yml").exists()
+
+
+def test_prompts_create_returns_generated_prompt(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "databricks.yml").write_text("targets:\n  dev: {}\n", encoding="utf-8")
+    client = TestClient(create_app())
+
+    response = client.post(
+        "/api/prompts/create",
+        json={"task_type": "add-workflow", "task_description": "Add a handoff workflow."},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["task_type"] == "add-workflow"
+    assert "Add a handoff workflow." in payload["prompt"]
+    assert "This repo usually defines only dev target." in payload["prompt"]
+
+
+def test_handoff_create_endpoint_writes_file(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    client = TestClient(create_app())
+
+    response = client.post(
+        "/api/handoff/create",
+        json={"task_type": "write-tests", "task_description": "Document test status."},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["path"].endswith("handoff/current.md")
+    assert "## Test Results" in payload["content"]
+    assert (tmp_path / "handoff/current.md").exists()

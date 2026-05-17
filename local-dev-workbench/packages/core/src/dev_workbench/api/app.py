@@ -10,10 +10,17 @@ from dev_workbench.models import (
     CommandRunResult,
     DetectionResult,
     GeneratedCommand,
+    GeneratedPromptResult,
+    HandoffCreateRequest,
+    HandoffResult,
     HealthStatus,
+    PromptGenerateRequest,
+    PromptSaveRequest,
+    PromptSaveResult,
     ProjectCreateRequest,
     ProjectCreateResult,
 )
+from dev_workbench.prompts import create_handoff, generate_prompt, save_prompt, show_handoff
 from dev_workbench.projects import ProjectCreateError, create_project
 
 
@@ -59,6 +66,41 @@ def create_app() -> FastAPI:
             return ProjectCreateResult(**result)
         except ProjectCreateError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    @api.post("/api/prompts/create", response_model=GeneratedPromptResult)
+    def prompts_create(request: PromptGenerateRequest) -> GeneratedPromptResult:
+        return generate_prompt(
+            task_type=request.task_type,
+            task_description=request.task_description,
+            recent_command_outputs=request.recent_command_outputs,
+        )
+
+    @api.post("/api/prompts/save", response_model=PromptSaveResult)
+    def prompts_save(request: PromptSaveRequest) -> PromptSaveResult:
+        path, prompt = save_prompt(
+            task_type=request.task_type,
+            task_description=request.task_description,
+            file_name=request.file_name,
+            recent_command_outputs=request.recent_command_outputs,
+        )
+        return PromptSaveResult(path=str(path), prompt=prompt)
+
+    @api.post("/api/handoff/create", response_model=HandoffResult)
+    def handoff_create(request: HandoffCreateRequest) -> HandoffResult:
+        path, content = create_handoff(
+            task_type=request.task_type,
+            task_description=request.task_description,
+            recent_command_outputs=request.recent_command_outputs,
+        )
+        return HandoffResult(path=str(path), content=content)
+
+    @api.get("/api/handoff/current", response_model=HandoffResult)
+    def handoff_current() -> HandoffResult:
+        try:
+            path, content = show_handoff()
+        except FileNotFoundError as exc:
+            raise HTTPException(status_code=404, detail="handoff file not found") from exc
+        return HandoffResult(path=str(path), content=content)
 
     return api
 

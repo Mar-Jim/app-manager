@@ -4,6 +4,7 @@ from pydantic import BaseModel
 
 RiskLevel = Literal["low", "medium", "high", "destructive"]
 ProjectCreateKind = Literal["bundle-job", "bundle-pipeline", "bundle-sql", "bundle-dashboard"]
+PromptTaskType = Literal["add-workflow", "fix-bundle-error", "add-databricks-app", "write-tests"]
 
 
 class HealthStatus(BaseModel):
@@ -76,3 +77,35 @@ class ProjectCreateResult(BaseModel):
     created: bool
     files: list[str]
     conflicts: list[str]
+
+
+class PromptGenerateRequest(BaseModel):
+    task_type: PromptTaskType = "add-workflow"
+    task_description: str = ""
+    recent_command_outputs: list[str] = []
+
+
+class GeneratedPromptResult(BaseModel):
+    task_type: PromptTaskType
+    prompt: str
+    project_summary: str
+
+
+class PromptSaveRequest(PromptGenerateRequest):
+    file_name: str | None = None
+
+
+class PromptSaveResult(BaseModel):
+    path: str
+    prompt: str
+
+
+class HandoffCreateRequest(BaseModel):
+    task_type: PromptTaskType = "add-workflow"
+    task_description: str = ""
+    recent_command_outputs: list[str] = []
+
+
+class HandoffResult(BaseModel):
+    path: str
+    content: str

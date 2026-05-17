@@ -45,6 +45,7 @@ type CommandRunResult = {
 };
 
 type ProjectKind = "bundle-job" | "bundle-pipeline" | "bundle-sql" | "bundle-dashboard";
+type PromptTaskType = "add-workflow" | "fix-bundle-error" | "add-databricks-app" | "write-tests";
 
 type ProjectCreateResult = {
   kind: ProjectKind;
@@ -56,6 +57,22 @@ type ProjectCreateResult = {
   conflicts: string[];
 };
 
+type GeneratedPromptResult = {
+  task_type: PromptTaskType;
+  prompt: string;
+  project_summary: string;
+};
+
+type PromptSaveResult = {
+  path: string;
+  prompt: string;
+};
+
+type HandoffResult = {
+  path: string;
+  content: string;
+};
+
 const projectTypes: { value: ProjectKind; label: string }[] = [
   { value: "bundle-job", label: "Workflow job" },
   { value: "bundle-pipeline", label: "DLT or Lakeflow pipeline" },
@@ -63,12 +80,19 @@ const projectTypes: { value: ProjectKind; label: string }[] = [
   { value: "bundle-dashboard", label: "Dashboard skeleton" },
 ];
 
+const promptTaskTypes: { value: PromptTaskType; label: string }[] = [
+  { value: "add-workflow", label: "Add workflow" },
+  { value: "fix-bundle-error", label: "Fix bundle error" },
+  { value: "add-databricks-app", label: "Add Databricks App" },
+  { value: "write-tests", label: "Write tests" },
+];
+
 function commandText(command: GeneratedCommand) {
   return [command.command, ...command.args].join(" ");
 }
 
 function App() {
-  const [page, setPage] = useState<"overview" | "create">("overview");
+  const [page, setPage] = useState<"overview" | "create" | "prompts">("overview");
   const [health, setHealth] = useState<Health | null>(null);
   const [project, setProject] = useState<ProjectDetection | null>(null);
   const [commands, setCommands] = useState<GeneratedCommand[]>([]);
@@ -85,6 +109,12 @@ function App() {
   const [createPreview, setCreatePreview] = useState<ProjectCreateResult | null>(null);
   const [createError, setCreateError] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
+  const [promptTaskType, setPromptTaskType] = useState<PromptTaskType>("add-workflow");
+  const [promptDescription, setPromptDescription] = useState("");
+  const [generatedPrompt, setGeneratedPrompt] = useState<GeneratedPromptResult | null>(null);
+  const [promptStatus, setPromptStatus] = useState<string | null>(null);
+  const [promptError, setPromptError] = useState<string | null>(null);
+  const [isPromptWorking, setIsPromptWorking] = useState(false);
 
   useEffect(() => {
     void fetch("/health").then((res) => res.json()).then(setHealth).catch(() => setHealth(null));
@@ -151,6 +181,98 @@ function App() {
     }
   }
 
+  function recentCommandOutput() {
+    if (!runResult) {
+      return [];
+    }
+    return [
+      [
+        `command_id: ${runResult.command_id}`,
+        `status: ${runResult.status}`,
+        `exit_code: ${runResult.exit_code}`,
+        runResult.stdout ? `stdout:\n${runResult.stdout}` : "",
+        runResult.stderr ? `stderr:\n${runResult.stderr}` : "",
+      ].filter(Boolean).join("\n"),
+    ];
+  }
+
+  async function generateCodexPrompt() {
+    setIsPromptWorking(true);
+    setPromptError(null);
+    setPromptStatus(null);
+    try {
+      const response = await fetch("/api/prompts/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          task_type: promptTaskType,
+          task_description: promptDescription,
+          recent_command_outputs: recentCommandOutput(),
+        }),
+      });
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(payload.detail ?? "Prompt generation failed.");
+      }
+      setGeneratedPrompt(payload);
+    } catch (error) {
+      setPromptError(error instanceof Error ? error.message : "Prompt generation failed.");
+    } finally {
+      setIsPromptWorking(false);
+    }
+  }
+
+  async function saveCodexPrompt() {
+    setIsPromptWorking(true);
+    setPromptError(null);
+    try {
+      const response = await fetch("/api/prompts/save", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          task_type: promptTaskType,
+          task_description: promptDescription,
+          recent_command_outputs: recentCommandOutput(),
+        }),
+      });
+      const payload: PromptSaveResult = await response.json();
+      if (!response.ok) {
+        throw new Error((payload as { detail?: string }).detail ?? "Prompt save failed.");
+      }
+      setGeneratedPrompt({ task_type: promptTaskType, prompt: payload.prompt, project_summary: generatedPrompt?.project_summary ?? "" });
+      setPromptStatus(`Saved to ${payload.path}`);
+    } catch (error) {
+      setPromptError(error instanceof Error ? error.message : "Prompt save failed.");
+    } finally {
+      setIsPromptWorking(false);
+    }
+  }
+
+  async function createHandoffFile() {
+    setIsPromptWorking(true);
+    setPromptError(null);
+    try {
+      const response = await fetch("/api/handoff/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          task_type: promptTaskType,
+          task_description: promptDescription,
+          recent_command_outputs: recentCommandOutput(),
+        }),
+      });
+      const payload: HandoffResult = await response.json();
+      if (!response.ok) {
+        throw new Error((payload as { detail?: string }).detail ?? "Handoff creation failed.");
+      }
+      setPromptStatus(`Created ${payload.path}`);
+    } catch (error) {
+      setPromptError(error instanceof Error ? error.message : "Handoff creation failed.");
+    } finally {
+      setIsPromptWorking(false);
+    }
+  }
+
   return (
     <main className="shell">
       <header className="topbar">
@@ -169,6 +291,9 @@ function App() {
         </button>
         <button className={page === "create" ? "active" : ""} type="button" onClick={() => setPage("create")}>
           Create Project
+        </button>
+        <button className={page === "prompts" ? "active" : ""} type="button" onClick={() => setPage("prompts")}>
+          Codex Prompts
         </button>
       </nav>
 
@@ -329,6 +454,71 @@ function App() {
                 </ul>
               </div>
             ) : <p className="empty">Preview the file plan before creating a bundle project.</p>}
+          </article>
+        </section>
+      ) : null}
+
+      {page === "prompts" ? (
+        <section className="prompt-layout">
+          <article className="panel">
+            <h2>Codex Prompts</h2>
+            <form className="create-form" onSubmit={(event) => {
+              event.preventDefault();
+              void generateCodexPrompt();
+            }}>
+              <label>
+                Task Type
+                <select value={promptTaskType} onChange={(event) => {
+                  setPromptTaskType(event.target.value as PromptTaskType);
+                  setGeneratedPrompt(null);
+                }}>
+                  {promptTaskTypes.map((type) => (
+                    <option key={type.value} value={type.value}>{type.label}</option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                Task Description
+                <textarea
+                  value={promptDescription}
+                  onChange={(event) => {
+                    setPromptDescription(event.target.value);
+                    setGeneratedPrompt(null);
+                  }}
+                  placeholder="Describe the Codex task to generate a focused prompt."
+                  rows={8}
+                />
+              </label>
+              <div className="form-actions">
+                <button type="submit" disabled={isPromptWorking}>
+                  {isPromptWorking ? "Working" : "Generate"}
+                </button>
+                <button
+                  type="button"
+                  disabled={!generatedPrompt}
+                  onClick={() => void navigator.clipboard.writeText(generatedPrompt?.prompt ?? "")}
+                >
+                  Copy
+                </button>
+                <button type="button" disabled={isPromptWorking} onClick={() => void saveCodexPrompt()}>
+                  Save to prompts/
+                </button>
+                <button type="button" disabled={isPromptWorking} onClick={() => void createHandoffFile()}>
+                  Create handoff
+                </button>
+              </div>
+            </form>
+            {promptStatus ? <p className="notice">{promptStatus}</p> : null}
+            {promptError ? <pre className="output error">{promptError}</pre> : null}
+          </article>
+
+          <article className="panel prompt-preview">
+            <h2>Generated Prompt</h2>
+            {generatedPrompt ? (
+              <pre className="prompt-output">{generatedPrompt.prompt}</pre>
+            ) : (
+              <p className="empty">Generated prompts include project detection, Databricks deployment constraints, selected recent command output, and local notes when available.</p>
+            )}
           </article>
         </section>
       ) : null}
