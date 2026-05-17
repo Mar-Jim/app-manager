@@ -28,6 +28,11 @@ button:hover {
   border-color: #4c7a9f;
 }
 
+button:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+
 .shell {
   margin: 0 auto;
   max-width: 1120px;
@@ -128,13 +133,30 @@ dd {
   gap: 10px;
 }
 
+.actions button {
+  display: grid;
+  gap: 4px;
+}
+
+.actions small {
+  color: #627181;
+  font-size: 12px;
+  text-transform: capitalize;
+}
+
 .command {
   align-items: center;
   border-top: 1px solid #e5e9ee;
+  border-left: 0;
+  border-right: 0;
+  border-bottom: 0;
+  border-radius: 0;
   display: grid;
   gap: 8px;
   grid-template-columns: 220px 1fr auto;
+  min-height: auto;
   padding: 12px 0;
+  width: 100%;
 }
 
 .command:first-of-type {
@@ -152,6 +174,114 @@ code {
 .command span {
   color: #6a4f00;
   font-size: 13px;
+}
+
+.empty {
+  color: #627181;
+  margin: 0;
+}
+
+.modal-backdrop {
+  align-items: center;
+  background: rgba(23, 32, 42, 0.36);
+  display: flex;
+  inset: 0;
+  justify-content: center;
+  padding: 20px;
+  position: fixed;
+}
+
+.modal {
+  background: #ffffff;
+  border: 1px solid #dbe1e7;
+  border-radius: 8px;
+  box-shadow: 0 20px 60px rgba(23, 32, 42, 0.22);
+  max-height: calc(100vh - 40px);
+  max-width: 760px;
+  overflow: auto;
+  padding: 20px;
+  width: 100%;
+}
+
+.modal-header {
+  align-items: flex-start;
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+  margin-bottom: 18px;
+}
+
+.risk {
+  border: 1px solid #c7d0da;
+  border-radius: 999px;
+  font-size: 13px;
+  padding: 6px 10px;
+  text-transform: capitalize;
+}
+
+.risk.low {
+  background: #e9f7ef;
+  border-color: #8cc7a4;
+  color: #1d6b3a;
+}
+
+.risk.medium {
+  background: #fff8e8;
+  border-color: #e0c270;
+  color: #785d14;
+}
+
+.risk.high,
+.risk.destructive {
+  background: #ffefef;
+  border-color: #e0a0a0;
+  color: #8b1f1f;
+}
+
+.review {
+  border-top: 1px solid #e5e9ee;
+  padding-top: 16px;
+}
+
+.review code {
+  display: inline-block;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+.modal-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.modal-actions button:first-child {
+  background: #1f4f7a;
+  border-color: #1f4f7a;
+  color: #ffffff;
+}
+
+.results {
+  border-top: 1px solid #e5e9ee;
+  margin-top: 18px;
+  padding-top: 14px;
+}
+
+.output {
+  background: #101820;
+  border-radius: 6px;
+  color: #eaf0f5;
+  margin: 10px 0 0;
+  max-height: 260px;
+  overflow: auto;
+  padding: 12px;
+  white-space: pre-wrap;
+}
+
+.output.error {
+  background: #2a1111;
+  color: #ffe5e5;
 }
 
 @media (max-width: 760px) {

@@ -4,13 +4,13 @@ import typer
 import uvicorn
 
 from dev_workbench import __version__
-from dev_workbench.commands import list_generated_commands
+from dev_workbench.commands import CommandExecutionError, run_command, suggest_commands
 from dev_workbench.detect import detect_project
 from dev_workbench.storage import initialize_database
 
 app = typer.Typer(help="Local-first developer workbench.")
 handoff_app = typer.Typer(help="Create and manage handoff files.")
-commands_app = typer.Typer(help="List generated commands for approval.")
+commands_app = typer.Typer(help="Suggest and run generated commands after approval.")
 app.add_typer(handoff_app, name="handoff")
 app.add_typer(commands_app, name="commands")
 
@@ -75,6 +75,46 @@ def handoff_create(path: Path = typer.Option(Path("handoff/current.md"), help="H
 @commands_app.command("list")
 def commands_list() -> None:
     """List generated commands without executing them."""
-    for command in list_generated_commands():
-        command_text = " ".join(command.command)
-        typer.echo(f"{command.id}: {command_text} [approval_required={command.requires_approval}]")
+    _print_suggested_commands()
+
+
+@commands_app.command("suggest")
+def commands_suggest() -> None:
+    """Suggest generated commands without executing them."""
+    _print_suggested_commands()
+
+
+@commands_app.command("run")
+def commands_run(
+    command_id: str = typer.Argument(..., metavar="COMMAND_ID"),
+    yes: bool = typer.Option(False, "--yes", help="Confirm medium, high, or destructive risk commands."),
+) -> None:
+    """Run a generated command by id."""
+    try:
+        result = run_command(command_id, yes=yes)
+    except CommandExecutionError as exc:
+        typer.echo(f"error: {exc}", err=True)
+        raise typer.Exit(code=2) from exc
+
+    typer.echo(f"status: {result.status}")
+    typer.echo(f"exit_code: {result.exit_code}")
+    if result.stdout:
+        typer.echo("stdout:")
+        typer.echo(result.stdout)
+    if result.stderr:
+        typer.echo("stderr:")
+        typer.echo(result.stderr)
+
+
+def _print_suggested_commands() -> None:
+    commands = suggest_commands()
+    if not commands:
+        typer.echo("No generated commands available for this project.")
+        return
+
+    for command in commands:
+        command_text = " ".join([command.command, *command.args])
+        typer.echo(
+            f"{command.id}: {command_text} "
+            f"[risk={command.risk_level}, confirmation_required={command.requires_confirmation}]"
+        )

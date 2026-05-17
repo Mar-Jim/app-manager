@@ -1,4 +1,8 @@
+from typing import Literal
+
 from pydantic import BaseModel
+
+RiskLevel = Literal["low", "medium", "high", "destructive"]
 
 
 class HealthStatus(BaseModel):
@@ -29,6 +33,24 @@ class DetectionResult(BaseModel):
 class GeneratedCommand(BaseModel):
     id: str
     label: str
-    command: list[str]
-    risk: str
-    requires_approval: bool = True
+    command: str
+    args: list[str]
+    working_dir: str
+    risk_level: RiskLevel
+    reason: str
+    requires_confirmation: bool
+
+
+class CommandRunRequest(BaseModel):
+    command_id: str
+    yes: bool = False
+
+
+class CommandRunResult(BaseModel):
+    command_id: str
+    status: str
+    stdout: str
+    stderr: str
+    exit_code: int | None
+    started_at: str
+    ended_at: str

@@ -26,6 +26,9 @@ workbench doctor
 workbench detect
 workbench detect --json
 workbench commands list
+workbench commands suggest
+workbench commands run validate-bundle
+workbench commands run deploy-dev --yes
 workbench handoff create
 ```
 
@@ -44,6 +47,8 @@ Available endpoints:
 - `GET /health`
 - `GET /api/project/detect`
 - `GET /api/commands`
+- `GET /api/commands/suggest`
+- `POST /api/commands/run`
 
 ## Run Web Dashboard
 
