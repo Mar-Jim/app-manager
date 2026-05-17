@@ -38,6 +38,10 @@ workbench todo list
 workbench todo complete 1
 workbench worklog add "Finished SQLite-backed local todos"
 workbench worklog summary
+workbench ado tickets list
+workbench ado ticket show 123
+workbench ado ticket draft-update 123 --note "Validated locally"
+workbench ado ticket post-update 123 --from-draft --yes
 workbench handoff create
 ```
 
@@ -89,6 +93,32 @@ Next steps:
 
 The service layer is local-first and keeps ticket note storage separate so Azure DevOps publishing can be added later without changing the todo and work log APIs.
 
+## Azure DevOps Tickets
+
+Azure DevOps support is local-first and permissioned. The workbench can read assigned tickets through the Azure DevOps REST API when local configuration is present, store ticket notes and draft updates in SQLite, and post a drafted update only after explicit approval.
+
+Configuration can come from SQLite metadata or environment variables. PAT values are never stored in SQLite; only the auth mode and env var name are stored.
+
+Environment variables:
+
+- `WORKBENCH_ADO_ORGANIZATION_URL`, such as `https://dev.azure.com/my-org`
+- `WORKBENCH_ADO_PROJECT`
+- `WORKBENCH_ADO_DEFAULT_QUERY`, optional WIQL query
+- `WORKBENCH_ADO_AUTH_MODE`, defaults to `pat_env`
+- `WORKBENCH_ADO_PAT_ENV_VAR`, defaults to `AZURE_DEVOPS_EXT_PAT`
+- the PAT env var named by `WORKBENCH_ADO_PAT_ENV_VAR`
+
+If organization, project, or token configuration is missing, the CLI, API, and web UI return setup guidance instead of failing the app.
+
+```bash
+workbench ado tickets list
+workbench ado ticket show 123
+workbench ado ticket draft-update 123 --note "Finished local validation"
+workbench ado ticket post-update 123 --from-draft --yes
+```
+
+Draft updates are deterministic local text built from ticket metadata and local notes. `post-update` refuses to run unless the latest local draft is selected with `--from-draft` and explicitly approved with `--yes`.
+
 ## Run Backend
 
 ```bash
@@ -111,6 +141,10 @@ Available endpoints:
 - `GET /api/worklog`
 - `POST /api/worklog`
 - `GET /api/worklog/summary`
+- `GET /api/ado/tickets`
+- `GET /api/ado/tickets/{id}`
+- `POST /api/ado/tickets/{id}/draft-update`
+- `POST /api/ado/tickets/{id}/post-update`
 
 `POST /api/projects/create` defaults to `dry_run: true` so the dashboard can preview planned files before writing them. Existing files are not overwritten unless `force` is set.
 
@@ -124,7 +158,7 @@ npm install
 npm run web:dev
 ```
 
-Open `http://127.0.0.1:5173`. The Daily Work page manages local todos, accepts quick notes, and generates a standup or ticket-update draft without sending it anywhere.
+Open `http://127.0.0.1:5173`. The Daily Work page manages local todos, accepts quick notes, and generates a standup draft without sending it anywhere. The Tickets page lists assigned Azure DevOps work items when configured, stores local notes, generates draft updates, and posts only after confirmation.
 
 ## Run Tests
 

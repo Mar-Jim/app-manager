@@ -3,9 +3,16 @@ from pathlib import Path
 from fastapi import FastAPI, HTTPException
 
 from dev_workbench import __version__
+from dev_workbench.ado import AdoConfigurationError, AdoPermissionError, AzureDevOpsService
 from dev_workbench.commands import CommandExecutionError, run_command, suggest_commands
 from dev_workbench.detect import detect_project
 from dev_workbench.models import (
+    AdoDraftUpdateRequest,
+    AdoPostUpdateRequest,
+    AdoPostUpdateResult,
+    AdoTicketDetail,
+    AdoTicketDraft,
+    AdoTicketList,
     CommandRunRequest,
     CommandRunResult,
     DetectionResult,
@@ -19,6 +26,8 @@ from dev_workbench.models import (
     PromptSaveResult,
     ProjectCreateRequest,
     ProjectCreateResult,
+    TicketNote,
+    TicketNoteCreateRequest,
     Todo,
     TodoCreateRequest,
     WorkLogCreateRequest,
@@ -30,8 +39,9 @@ from dev_workbench.projects import ProjectCreateError, create_project
 from dev_workbench.work import WorkbenchService
 
 
-def create_app() -> FastAPI:
+def create_app(ado_service: AzureDevOpsService | None = None) -> FastAPI:
     api = FastAPI(title="Local Dev Workbench", version=__version__)
+    ado = ado_service or AzureDevOpsService()
 
     @api.get("/health", response_model=HealthStatus)
     def health() -> HealthStatus:
@@ -140,6 +150,43 @@ def create_app() -> FastAPI:
     @api.get("/api/worklog/summary", response_model=WorkLogSummary)
     def worklog_summary() -> WorkLogSummary:
         return WorkLogSummary(summary=WorkbenchService().generate_daily_summary())
+
+    @api.get("/api/ado/tickets", response_model=AdoTicketList)
+    def ado_tickets_list() -> AdoTicketList:
+        try:
+            return ado.list_tickets()
+        except AdoConfigurationError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    @api.get("/api/ado/tickets/{ticket_id}", response_model=AdoTicketDetail)
+    def ado_ticket_show(ticket_id: int) -> AdoTicketDetail:
+        try:
+            return ado.get_ticket_detail(ticket_id)
+        except AdoConfigurationError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    @api.post("/api/ado/tickets/{ticket_id}/notes", response_model=TicketNote)
+    def ado_ticket_note(ticket_id: int, request: TicketNoteCreateRequest) -> TicketNote:
+        try:
+            return ado.add_note(ticket_id, request.text)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    @api.post("/api/ado/tickets/{ticket_id}/draft-update", response_model=AdoTicketDraft)
+    def ado_ticket_draft_update(ticket_id: int, request: AdoDraftUpdateRequest | None = None) -> AdoTicketDraft:
+        try:
+            return ado.create_draft_update(ticket_id, note=request.note if request else None)
+        except (AdoConfigurationError, ValueError) as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    @api.post("/api/ado/tickets/{ticket_id}/post-update", response_model=AdoPostUpdateResult)
+    def ado_ticket_post_update(ticket_id: int, request: AdoPostUpdateRequest) -> AdoPostUpdateResult:
+        try:
+            return ado.post_update(ticket_id, from_draft=request.from_draft, yes=request.yes)
+        except AdoPermissionError as exc:
+            raise HTTPException(status_code=403, detail=str(exc)) from exc
+        except AdoConfigurationError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     return api
 

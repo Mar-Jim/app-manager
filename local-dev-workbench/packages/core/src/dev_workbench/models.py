@@ -147,3 +147,61 @@ class TicketNote(BaseModel):
 class TicketNoteCreateRequest(BaseModel):
     ticket_ref: str
     text: str
+
+
+class AdoConfig(BaseModel):
+    organization_url: str | None = None
+    project: str | None = None
+    default_query: str | None = None
+    auth_mode: str = "pat_env"
+    personal_access_token_env_var: str | None = None
+    configured: bool = False
+    token_available: bool = False
+    setup_guidance: str | None = None
+
+
+class AdoTicket(BaseModel):
+    id: int
+    title: str
+    state: str | None = None
+    assigned_to: str | None = None
+    work_item_type: str | None = None
+    url: str | None = None
+    description: str | None = None
+
+
+class AdoTicketList(BaseModel):
+    tickets: list[AdoTicket]
+    config: AdoConfig
+
+
+class AdoTicketDetail(BaseModel):
+    ticket: AdoTicket
+    notes: list[TicketNote]
+    latest_draft: "AdoTicketDraft | None" = None
+    config: AdoConfig
+
+
+class AdoTicketDraft(BaseModel):
+    id: int
+    ticket_ref: str
+    body: str
+    posted: bool
+    created_at: str
+    posted_at: str | None = None
+
+
+class AdoDraftUpdateRequest(BaseModel):
+    note: str | None = None
+
+
+class AdoPostUpdateRequest(BaseModel):
+    from_draft: bool = True
+    yes: bool = False
+
+
+class AdoPostUpdateResult(BaseModel):
+    ticket_ref: str
+    draft_id: int
+    posted: bool
+    message: str

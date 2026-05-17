@@ -1,6 +1,8 @@
 from fastapi.testclient import TestClient
 
+from dev_workbench.ado import AzureDevOpsService
 from dev_workbench.api.app import create_app
+from dev_workbench.models import AdoTicket
 
 
 def test_health():
@@ -154,3 +156,58 @@ def test_worklog_api_add_list_summary(tmp_path, monkeypatch):
     assert listed.json()[0]["text"] == "Added worklog API"
     assert summary.status_code == 200
     assert "Today I worked on:\n- Added worklog API" in summary.json()["summary"]
+
+
+class MockAdoClient:
+    def __init__(self):
+        self.posted = []
+
+    def list_tickets(self):
+        return [AdoTicket(id=55, title="Wire ADO UI", state="Active")]
+
+    def get_ticket(self, ticket_id: int):
+        return AdoTicket(id=ticket_id, title="Wire ADO UI", state="Active")
+
+    def post_comment(self, ticket_id: int, body: str):
+        self.posted.append((ticket_id, body))
+
+
+def test_ado_api_no_token_returns_guidance(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("WORKBENCH_ADO_ORGANIZATION_URL", "https://dev.azure.com/example")
+    monkeypatch.setenv("WORKBENCH_ADO_PROJECT", "Demo")
+    monkeypatch.setenv("WORKBENCH_ADO_PAT_ENV_VAR", "MISSING_ADO_PAT")
+    monkeypatch.delenv("MISSING_ADO_PAT", raising=False)
+    client = TestClient(create_app())
+
+    response = client.get("/api/ado/tickets")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["tickets"] == []
+    assert "MISSING_ADO_PAT" in payload["config"]["setup_guidance"]
+
+
+def test_ado_api_draft_and_post_confirmation(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("WORKBENCH_ADO_ORGANIZATION_URL", "https://dev.azure.com/example")
+    monkeypatch.setenv("WORKBENCH_ADO_PROJECT", "Demo")
+    monkeypatch.setenv("WORKBENCH_ADO_PAT_ENV_VAR", "MOCK_ADO_PAT")
+    monkeypatch.setenv("MOCK_ADO_PAT", "not-stored")
+    mock = MockAdoClient()
+    client = TestClient(create_app(ado_service=AzureDevOpsService(db_path=tmp_path / ".workbench/workbench.sqlite3", client=mock)))
+
+    tickets = client.get("/api/ado/tickets")
+    draft = client.post("/api/ado/tickets/55/draft-update", json={"note": "Finished local draft flow."})
+    blocked = client.post("/api/ado/tickets/55/post-update", json={"from_draft": True, "yes": False})
+    posted = client.post("/api/ado/tickets/55/post-update", json={"from_draft": True, "yes": True})
+
+    assert tickets.status_code == 200
+    assert tickets.json()["tickets"][0]["id"] == 55
+    assert draft.status_code == 200
+    assert "Finished local draft flow." in draft.json()["body"]
+    assert blocked.status_code == 403
+    assert "explicit --yes" in blocked.json()["detail"]
+    assert posted.status_code == 200
+    assert posted.json()["posted"] is True
+    assert mock.posted[0][0] == 55

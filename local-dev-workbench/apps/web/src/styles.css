@@ -158,6 +158,12 @@ h2 {
   grid-template-columns: minmax(320px, 0.8fr) minmax(0, 1.2fr);
 }
 
+.tickets-layout {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: minmax(320px, 0.9fr) minmax(0, 1.1fr);
+}
+
 .summary-panel {
   grid-column: 1 / -1;
 }
@@ -264,6 +270,40 @@ h2 {
   border-radius: 6px;
   margin: 0;
   padding: 10px 12px;
+}
+
+.ticket-picker {
+  margin-top: 14px;
+}
+
+.ticket-cards {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.ticket-card {
+  display: grid;
+  gap: 4px;
+  min-height: 58px;
+  width: 100%;
+}
+
+.ticket-card span {
+  color: #627181;
+  font-size: 13px;
+}
+
+.confirm-post {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+  margin: 14px 0;
+}
+
+.confirm-post input {
+  min-height: 18px;
+  width: 18px;
 }
 
 .preview h3 {
@@ -499,6 +539,7 @@ code {
   .create-layout,
   .prompt-layout,
   .work-layout,
+  .tickets-layout,
   .inline-form,
   .command {
     grid-template-columns: 1fr;

@@ -4,6 +4,7 @@ import typer
 import uvicorn
 
 from dev_workbench import __version__
+from dev_workbench.ado import AdoConfigurationError, AdoPermissionError, AzureDevOpsService
 from dev_workbench.commands import CommandExecutionError, run_command, suggest_commands
 from dev_workbench.detect import detect_project
 from dev_workbench.models import PromptTaskType
@@ -26,12 +27,14 @@ commands_app = typer.Typer(help="Suggest and run generated commands after approv
 prompt_app = typer.Typer(help="Generate Codex prompts from local project context.")
 todo_app = typer.Typer(help="Track local todos.")
 worklog_app = typer.Typer(help="Track local daily work notes.")
+ado_app = typer.Typer(help="Read Azure DevOps tickets and manage local draft updates.")
 app.add_typer(create_app, name="create")
 app.add_typer(handoff_app, name="handoff")
 app.add_typer(commands_app, name="commands")
 app.add_typer(prompt_app, name="prompt")
 app.add_typer(todo_app, name="todo")
 app.add_typer(worklog_app, name="worklog")
+app.add_typer(ado_app, name="ado")
 
 
 @app.command()
@@ -156,6 +159,86 @@ def worklog_add(text: str = typer.Argument(..., metavar="TEXT")) -> None:
 def worklog_summary() -> None:
     """Generate a local daily summary draft."""
     typer.echo(WorkbenchService().generate_daily_summary())
+
+
+ado_tickets_app = typer.Typer(help="List and inspect Azure DevOps tickets.")
+ado_app.add_typer(ado_tickets_app, name="tickets")
+
+
+@ado_tickets_app.command("list")
+def ado_tickets_list() -> None:
+    """List assigned Azure DevOps tickets when local auth is configured."""
+    try:
+        result = AzureDevOpsService().list_tickets()
+    except AdoConfigurationError as exc:
+        typer.echo(f"error: {exc}", err=True)
+        raise typer.Exit(code=2) from exc
+    if result.config.setup_guidance:
+        typer.echo(result.config.setup_guidance)
+    if not result.tickets:
+        typer.echo("No Azure DevOps tickets available.")
+        return
+    for ticket in result.tickets:
+        state = ticket.state or "unknown"
+        typer.echo(f"{ticket.id}: [{state}] {ticket.title}")
+
+
+ado_ticket_app = typer.Typer(help="Show, draft, and post Azure DevOps ticket updates.")
+ado_app.add_typer(ado_ticket_app, name="ticket")
+
+
+@ado_ticket_app.command("show")
+def ado_ticket_show(ticket_id: int = typer.Argument(..., metavar="ID")) -> None:
+    """Show an Azure DevOps ticket with local notes and latest draft."""
+    try:
+        detail = AzureDevOpsService().get_ticket_detail(ticket_id)
+    except AdoConfigurationError as exc:
+        typer.echo(f"error: {exc}", err=True)
+        raise typer.Exit(code=2) from exc
+    if detail.config.setup_guidance:
+        typer.echo(detail.config.setup_guidance)
+    typer.echo(f"{detail.ticket.id}: {detail.ticket.title}")
+    typer.echo(f"state: {detail.ticket.state or 'unknown'}")
+    if detail.notes:
+        typer.echo("local notes:")
+        for note in detail.notes:
+            typer.echo(f"- {note.text}")
+    if detail.latest_draft:
+        typer.echo("latest draft:")
+        typer.echo(detail.latest_draft.body)
+
+
+@ado_ticket_app.command("draft-update")
+def ado_ticket_draft_update(
+    ticket_id: int = typer.Argument(..., metavar="ID"),
+    note: str | None = typer.Option(None, "--note", help="Optional local note to attach before drafting."),
+) -> None:
+    """Generate a local-only Azure DevOps ticket update draft."""
+    try:
+        draft = AzureDevOpsService().create_draft_update(ticket_id, note=note)
+    except (AdoConfigurationError, ValueError) as exc:
+        typer.echo(f"error: {exc}", err=True)
+        raise typer.Exit(code=2) from exc
+    typer.echo(f"draft: {draft.id}")
+    typer.echo(draft.body)
+
+
+@ado_ticket_app.command("post-update")
+def ado_ticket_post_update(
+    ticket_id: int = typer.Argument(..., metavar="ID"),
+    from_draft: bool = typer.Option(False, "--from-draft", help="Post the latest local draft."),
+    yes: bool = typer.Option(False, "--yes", help="Explicitly approve posting to Azure DevOps."),
+) -> None:
+    """Post the latest local draft to Azure DevOps after explicit approval."""
+    try:
+        result = AzureDevOpsService().post_update(ticket_id, from_draft=from_draft, yes=yes)
+    except AdoPermissionError as exc:
+        typer.echo(f"error: {exc}", err=True)
+        raise typer.Exit(code=2) from exc
+    except AdoConfigurationError as exc:
+        typer.echo(f"error: {exc}", err=True)
+        raise typer.Exit(code=2) from exc
+    typer.echo(result.message)
 
 
 @commands_app.command("list")

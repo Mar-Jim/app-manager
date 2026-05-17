@@ -106,3 +106,39 @@ def test_worklog_cli_add_and_summary(tmp_path, monkeypatch):
     assert summary.exit_code == 0
     assert "Today I worked on:\n- Finished CLI support" in summary.output
     assert "Completed:\n- None" in summary.output
+
+
+def test_ado_cli_no_token_guidance(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("WORKBENCH_ADO_ORGANIZATION_URL", "https://dev.azure.com/example")
+    monkeypatch.setenv("WORKBENCH_ADO_PROJECT", "Demo")
+    monkeypatch.setenv("WORKBENCH_ADO_PAT_ENV_VAR", "MISSING_ADO_PAT")
+    monkeypatch.delenv("MISSING_ADO_PAT", raising=False)
+
+    result = CliRunner().invoke(app, ["ado", "tickets", "list"])
+
+    assert result.exit_code == 0
+    assert "MISSING_ADO_PAT" in result.output
+    assert "No Azure DevOps tickets available." in result.output
+
+
+def test_ado_cli_draft_update_is_local_without_token(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+
+    result = CliRunner().invoke(app, ["ado", "ticket", "draft-update", "42", "--note", "Validated locally."])
+
+    assert result.exit_code == 0
+    assert "draft: 1" in result.output
+    assert "Update for #42: Azure DevOps #42" in result.output
+    assert "- Validated locally." in result.output
+
+
+def test_ado_cli_post_requires_yes(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    runner = CliRunner()
+    runner.invoke(app, ["ado", "ticket", "draft-update", "42", "--note", "Validated locally."])
+
+    result = runner.invoke(app, ["ado", "ticket", "post-update", "42", "--from-draft"])
+
+    assert result.exit_code == 2
+    assert "requires explicit --yes" in result.output

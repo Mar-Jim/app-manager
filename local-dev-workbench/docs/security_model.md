@@ -9,6 +9,7 @@ The workbench is designed for a restrictive company environment.
 - Do not send source code, prompts, project metadata, or command output externally.
 - Bind development services to `127.0.0.1` by default.
 - Store local state in SQLite.
+- Store Azure DevOps PAT values only in environment variables, never in SQLite.
 
 ## Command Safety
 
@@ -54,3 +55,37 @@ Future execution support should include:
 - environment variable review
 - audit history in SQLite
 - richer Databricks CLI capability detection for JSON output fallback
+
+## Azure DevOps Safety
+
+Azure DevOps integration is designed for restrictive company environments where external writes need explicit approval.
+
+Configuration fields:
+
+- `organization_url`
+- `project`
+- `default_query`
+- `auth_mode`
+- `personal_access_token_env_var`
+
+SQLite may store configuration metadata and the PAT environment variable name, but it must not store the PAT value. The current implemented auth mode is `pat_env`, which reads the token from the named local environment variable at request time. If required configuration or the token is missing, the app returns setup guidance and keeps running.
+
+Read behavior:
+
+- Ticket listing uses WIQL through the Azure DevOps REST API.
+- Ticket details are fetched only when the user opens a ticket or requests it through the CLI/API.
+- Local ticket notes are stored in `ticket_notes`.
+
+Draft behavior:
+
+- Draft updates are generated locally from ticket metadata and local notes.
+- Drafts are stored in `ticket_update_drafts`.
+- Draft generation does not post to Azure DevOps.
+
+Post behavior:
+
+- CLI posting requires `workbench ado ticket post-update ID --from-draft --yes`.
+- API posting requires `from_draft: true` and `yes: true`.
+- The web UI requires a confirmation checkbox before sending the API approval flag.
+- Posting uses the latest local draft body.
+- Automatic posting is not supported.

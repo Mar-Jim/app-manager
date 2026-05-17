@@ -91,6 +91,55 @@ type WorkLogSummary = {
   summary: string;
 };
 
+type TicketNote = {
+  id: number;
+  ticket_ref: string;
+  text: string;
+  created_at: string;
+};
+
+type AdoConfig = {
+  organization_url: string | null;
+  project: string | null;
+  default_query: string | null;
+  auth_mode: string;
+  personal_access_token_env_var: string | null;
+  configured: boolean;
+  token_available: boolean;
+  setup_guidance: string | null;
+};
+
+type AdoTicket = {
+  id: number;
+  title: string;
+  state: string | null;
+  assigned_to: string | null;
+  work_item_type: string | null;
+  url: string | null;
+  description: string | null;
+};
+
+type AdoTicketDraft = {
+  id: number;
+  ticket_ref: string;
+  body: string;
+  posted: boolean;
+  created_at: string;
+  posted_at: string | null;
+};
+
+type AdoTicketList = {
+  tickets: AdoTicket[];
+  config: AdoConfig;
+};
+
+type AdoTicketDetail = {
+  ticket: AdoTicket;
+  notes: TicketNote[];
+  latest_draft: AdoTicketDraft | null;
+  config: AdoConfig;
+};
+
 const projectTypes: { value: ProjectKind; label: string }[] = [
   { value: "bundle-job", label: "Workflow job" },
   { value: "bundle-pipeline", label: "DLT or Lakeflow pipeline" },
@@ -110,7 +159,7 @@ function commandText(command: GeneratedCommand) {
 }
 
 function App() {
-  const [page, setPage] = useState<"overview" | "create" | "prompts" | "work">("overview");
+  const [page, setPage] = useState<"overview" | "create" | "prompts" | "work" | "tickets">("overview");
   const [health, setHealth] = useState<Health | null>(null);
   const [project, setProject] = useState<ProjectDetection | null>(null);
   const [commands, setCommands] = useState<GeneratedCommand[]>([]);
@@ -140,12 +189,23 @@ function App() {
   const [dailySummary, setDailySummary] = useState<string | null>(null);
   const [workError, setWorkError] = useState<string | null>(null);
   const [isWorkSaving, setIsWorkSaving] = useState(false);
+  const [adoTickets, setAdoTickets] = useState<AdoTicket[]>([]);
+  const [adoConfig, setAdoConfig] = useState<AdoConfig | null>(null);
+  const [activeTicketId, setActiveTicketId] = useState("");
+  const [activeTicket, setActiveTicket] = useState<AdoTicketDetail | null>(null);
+  const [ticketNoteText, setTicketNoteText] = useState("");
+  const [ticketDraft, setTicketDraft] = useState<AdoTicketDraft | null>(null);
+  const [ticketConfirmPost, setTicketConfirmPost] = useState(false);
+  const [ticketStatus, setTicketStatus] = useState<string | null>(null);
+  const [ticketError, setTicketError] = useState<string | null>(null);
+  const [isTicketWorking, setIsTicketWorking] = useState(false);
 
   useEffect(() => {
     void fetch("/health").then((res) => res.json()).then(setHealth).catch(() => setHealth(null));
     void fetch("/api/project/detect").then((res) => res.json()).then(setProject).catch(() => setProject(null));
     void fetch("/api/commands/suggest").then((res) => res.json()).then(setCommands).catch(() => setCommands([]));
     void refreshLocalWork();
+    void refreshAdoTickets();
   }, []);
 
   async function refreshLocalWork() {
@@ -153,6 +213,128 @@ function App() {
       fetch("/api/todos").then((res) => res.json()).then(setTodos).catch(() => setTodos([])),
       fetch("/api/worklog").then((res) => res.json()).then(setWorklog).catch(() => setWorklog([])),
     ]);
+  }
+
+  async function refreshAdoTickets() {
+    setTicketError(null);
+    try {
+      const response = await fetch("/api/ado/tickets");
+      const payload: AdoTicketList = await response.json();
+      if (!response.ok) {
+        throw new Error((payload as { detail?: string }).detail ?? "Azure DevOps tickets failed to load.");
+      }
+      setAdoTickets(payload.tickets);
+      setAdoConfig(payload.config);
+      if (!activeTicketId && payload.tickets[0]) {
+        setActiveTicketId(String(payload.tickets[0].id));
+      }
+    } catch (error) {
+      setAdoTickets([]);
+      setTicketError(error instanceof Error ? error.message : "Azure DevOps tickets failed to load.");
+    }
+  }
+
+  async function loadAdoTicket(ticketId = activeTicketId) {
+    if (!ticketId.trim()) {
+      return;
+    }
+    setIsTicketWorking(true);
+    setTicketError(null);
+    setTicketStatus(null);
+    try {
+      const response = await fetch(`/api/ado/tickets/${encodeURIComponent(ticketId.trim())}`);
+      const payload: AdoTicketDetail = await response.json();
+      if (!response.ok) {
+        throw new Error((payload as { detail?: string }).detail ?? "Azure DevOps ticket failed to load.");
+      }
+      setActiveTicket(payload);
+      setTicketDraft(payload.latest_draft);
+      setAdoConfig(payload.config);
+    } catch (error) {
+      setTicketError(error instanceof Error ? error.message : "Azure DevOps ticket failed to load.");
+    } finally {
+      setIsTicketWorking(false);
+    }
+  }
+
+  async function saveTicketNote() {
+    if (!activeTicketId.trim() || !ticketNoteText.trim()) {
+      return;
+    }
+    setIsTicketWorking(true);
+    setTicketError(null);
+    try {
+      const response = await fetch(`/api/ado/tickets/${encodeURIComponent(activeTicketId.trim())}/notes`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ticket_ref: activeTicketId.trim(), text: ticketNoteText }),
+      });
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(payload.detail ?? "Local note save failed.");
+      }
+      setTicketNoteText("");
+      await loadAdoTicket(activeTicketId);
+    } catch (error) {
+      setTicketError(error instanceof Error ? error.message : "Local note save failed.");
+    } finally {
+      setIsTicketWorking(false);
+    }
+  }
+
+  async function generateTicketDraft() {
+    if (!activeTicketId.trim()) {
+      return;
+    }
+    setIsTicketWorking(true);
+    setTicketError(null);
+    setTicketStatus(null);
+    try {
+      const response = await fetch(`/api/ado/tickets/${encodeURIComponent(activeTicketId.trim())}/draft-update`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ note: ticketNoteText.trim() || null }),
+      });
+      const payload: AdoTicketDraft = await response.json();
+      if (!response.ok) {
+        throw new Error((payload as { detail?: string }).detail ?? "Draft generation failed.");
+      }
+      setTicketNoteText("");
+      setTicketDraft(payload);
+      setTicketConfirmPost(false);
+      await loadAdoTicket(activeTicketId);
+    } catch (error) {
+      setTicketError(error instanceof Error ? error.message : "Draft generation failed.");
+    } finally {
+      setIsTicketWorking(false);
+    }
+  }
+
+  async function postTicketDraft() {
+    if (!activeTicketId.trim() || !ticketDraft || !ticketConfirmPost) {
+      return;
+    }
+    setIsTicketWorking(true);
+    setTicketError(null);
+    setTicketStatus(null);
+    try {
+      const response = await fetch(`/api/ado/tickets/${encodeURIComponent(activeTicketId.trim())}/post-update`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ from_draft: true, yes: ticketConfirmPost }),
+      });
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(payload.detail ?? "Post update failed.");
+      }
+      setTicketStatus(payload.message);
+      setTicketConfirmPost(false);
+      await loadAdoTicket(activeTicketId);
+    } catch (error) {
+      setTicketError(error instanceof Error ? error.message : "Post update failed.");
+    } finally {
+      setIsTicketWorking(false);
+    }
   }
 
   async function runSelectedCommand() {
@@ -414,6 +596,9 @@ function App() {
         </button>
         <button className={page === "work" ? "active" : ""} type="button" onClick={() => setPage("work")}>
           Daily Work
+        </button>
+        <button className={page === "tickets" ? "active" : ""} type="button" onClick={() => setPage("tickets")}>
+          Tickets
         </button>
       </nav>
 
@@ -704,6 +889,120 @@ function App() {
               <pre className="prompt-output">{dailySummary}</pre>
             ) : (
               <p className="empty">Generate a local draft for tickets or standup. Nothing is sent externally.</p>
+            )}
+          </article>
+        </section>
+      ) : null}
+
+      {page === "tickets" ? (
+        <section className="tickets-layout">
+          <article className="panel tickets-list">
+            <h2>Assigned Tickets</h2>
+            {adoConfig?.setup_guidance ? <p className="notice">{adoConfig.setup_guidance}</p> : null}
+            <div className="inline-form ticket-picker">
+              <select value={activeTicketId} onChange={(event) => setActiveTicketId(event.target.value)}>
+                <option value="">Select ticket</option>
+                {adoTickets.map((ticket) => (
+                  <option key={ticket.id} value={ticket.id}>
+                    {ticket.id}: {ticket.title}
+                  </option>
+                ))}
+              </select>
+              <button type="button" disabled={isTicketWorking || !activeTicketId.trim()} onClick={() => void loadAdoTicket()}>
+                Open
+              </button>
+            </div>
+            <div className="ticket-cards">
+              {adoTickets.length ? adoTickets.map((ticket) => (
+                <button key={ticket.id} type="button" className="ticket-card" onClick={() => {
+                  setActiveTicketId(String(ticket.id));
+                  void loadAdoTicket(String(ticket.id));
+                }}>
+                  <strong>{ticket.title}</strong>
+                  <span>#{ticket.id} · {ticket.state ?? "unknown"}</span>
+                </button>
+              )) : <p className="empty">No assigned tickets loaded.</p>}
+            </div>
+          </article>
+
+          <article className="panel ticket-detail">
+            <h2>Active Ticket</h2>
+            {activeTicket ? (
+              <>
+                <dl>
+                  <div>
+                    <dt>Ticket</dt>
+                    <dd>#{activeTicket.ticket.id}: {activeTicket.ticket.title}</dd>
+                  </div>
+                  <div>
+                    <dt>Status</dt>
+                    <dd>{activeTicket.ticket.state ?? "unknown"}</dd>
+                  </div>
+                  <div>
+                    <dt>Assignee</dt>
+                    <dd>{activeTicket.ticket.assigned_to ?? "unknown"}</dd>
+                  </div>
+                </dl>
+                <div className="worklog-list">
+                  {activeTicket.notes.length ? activeTicket.notes.map((note) => (
+                    <p key={note.id}>{note.text}</p>
+                  )) : <p className="empty">Local notes for this ticket appear here.</p>}
+                </div>
+              </>
+            ) : (
+              <p className="empty">Select a ticket to view details and local notes.</p>
+            )}
+            {ticketError ? <pre className="output error">{ticketError}</pre> : null}
+            {ticketStatus ? <p className="notice">{ticketStatus}</p> : null}
+          </article>
+
+          <article className="panel">
+            <h2>Local Notes</h2>
+            <form className="create-form" onSubmit={(event) => {
+              event.preventDefault();
+              void saveTicketNote();
+            }}>
+              <label>
+                Note
+                <textarea
+                  rows={5}
+                  value={ticketNoteText}
+                  onChange={(event) => setTicketNoteText(event.target.value)}
+                  placeholder="Capture local context for this ticket."
+                />
+              </label>
+              <div className="form-actions">
+                <button type="submit" disabled={isTicketWorking || !activeTicketId.trim() || !ticketNoteText.trim()}>
+                  Save Note
+                </button>
+                <button type="button" disabled={isTicketWorking || !activeTicketId.trim()} onClick={() => void generateTicketDraft()}>
+                  Generate Draft Update
+                </button>
+              </div>
+            </form>
+          </article>
+
+          <article className="panel prompt-preview">
+            <h2>Draft Update</h2>
+            {ticketDraft ? (
+              <>
+                <pre className="prompt-output">{ticketDraft.body}</pre>
+                <label className="checkbox confirm-post">
+                  <input
+                    type="checkbox"
+                    checked={ticketConfirmPost}
+                    onChange={(event) => setTicketConfirmPost(event.target.checked)}
+                  />
+                  I approve posting this draft to Azure DevOps
+                </label>
+                <div className="form-actions">
+                  <button type="button" disabled={isTicketWorking || !ticketConfirmPost} onClick={() => void postTicketDraft()}>
+                    Post Approved Draft
+                  </button>
+                </div>
+              </>
+            ) : (
+              <p className="empty">Generate a draft before posting. Drafts stay local until explicitly approved.</p>
             )}
           </article>
         </section>

@@ -58,4 +58,24 @@ def initialize_database(path: Path | None = None) -> Path:
             )
             """
         )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS ado_config (
+              key TEXT PRIMARY KEY,
+              value TEXT NOT NULL
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS ticket_update_drafts (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              ticket_ref TEXT NOT NULL,
+              body TEXT NOT NULL,
+              posted INTEGER NOT NULL DEFAULT 0,
+              created_at TEXT NOT NULL,
+              posted_at TEXT
+            )
+            """
+        )
     return db_path
